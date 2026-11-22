@@ -67,7 +67,7 @@ void main() {
       await tester.pumpWidget(FocusFeedApp(controller: c));
       await tester.pumpAndSettle();
       expect(find.text('15:00'), findsOneWidget);
-      expect(find.text('Retomar Foco'), findsOneWidget);
+      expect(find.text('Reanudar enfoque'), findsOneWidget);
       expect(find.text('Celular reiniciado.'), findsOneWidget);
       await tester.scrollUntilVisible(find.text('Saldo: 5 min 12 s'), 200);
       expect(find.text('Saldo: 5 min 12 s'), findsOneWidget);
@@ -96,7 +96,7 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
     expect(
-      find.text('Bloqueio indisponível — verifique permissões e serviço'),
+      find.text('Bloqueo no disponible — comprueba los permisos y el servicio'),
       findsOneWidget,
     );
     await tester.pumpWidget(const SizedBox());
@@ -109,8 +109,8 @@ void main() {
     final c = SessionController(platform: native, poll: false);
     await tester.pumpWidget(FocusFeedApp(controller: c));
     await tester.pumpAndSettle();
-    expect(find.text('Tentar carregar novamente'), findsOneWidget);
-    expect(find.text('Iniciar Foco'), findsNothing);
+    expect(find.text('Volver a cargar'), findsOneWidget);
+    expect(find.text('Iniciar enfoque'), findsNothing);
     await tester.pumpWidget(const SizedBox());
     c.dispose();
   });
@@ -126,7 +126,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Valdenor Tavares'), findsOneWidget);
     expect(find.text('valdenor.sa@proton.me'), findsOneWidget);
-    await tester.tap(find.text('Escuro'));
+    await tester.tap(find.text('Oscuro'));
     await tester.pumpAndSettle();
     expect(settings.mode, AppThemeMode.dark);
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
@@ -178,13 +178,13 @@ void main() {
     await tester.pumpWidget(FocusFeedApp(controller: c));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
-      find.text('Selecionar apps no iOS'),
+      find.text('Seleccionar apps en iOS'),
       200,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.ensureVisible(find.text('Selecionar apps no iOS'));
+    await tester.ensureVisible(find.text('Seleccionar apps en iOS'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Selecionar apps no iOS'));
+    await tester.tap(find.text('Seleccionar apps en iOS'));
     await tester.pumpAndSettle();
     expect(native.calls.last, 'pickApps');
     await tester.pumpWidget(const SizedBox());
