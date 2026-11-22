@@ -27,7 +27,8 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // Compatible with Android 7.0+; Redmi 13C (Android 15) is supported.
+        minSdk = 24
         targetSdk = flutter.targetSdkVersion
         // Base version from pubspec.yaml; split APKs use base * 10 + ABI code.
         versionCode = flutter.versionCode
