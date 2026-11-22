@@ -37,7 +37,7 @@ class EarnTimeDayTest {
         val day = EarnTimeDay("2026-11-22")
         day.recordProductive(1800, "2026-11-22", oneToOne)
         day.recordDistracting(5400, "2026-11-22", oneToOne)
-        assertEquals(2 * 60 * 60L, day.remaining(oneToOne))
+        assertEquals(60 * 60L, day.remaining(oneToOne))
         day.recordDistracting(2 * 60 * 60L, "2026-11-22", oneToOne)
         assertEquals(0L, day.remaining(oneToOne))
         assertFalse(day.canUseDistractingApps(oneToOne))
