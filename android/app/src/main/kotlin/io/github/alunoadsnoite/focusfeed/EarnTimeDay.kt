@@ -38,12 +38,6 @@ data class EarnTimeDay(
         validate()
     }
 
-    val remainingSeconds: Long
-        get() = (earnedSeconds + spentAllowanceSeconds - spentSeconds).coerceAtLeast(0)
-
-    // Kept as a derived value so the allowance is always the current setting.
-    private var spentAllowanceSeconds: Long = 0
-
     fun validate() {
         require(productiveSeconds >= 0 && earnedSeconds >= 0 && spentSeconds >= 0)
         require(fractionalNumerator >= 0)
