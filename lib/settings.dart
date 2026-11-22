@@ -53,7 +53,7 @@ class SettingsController extends ChangeNotifier {
 
   final SettingsPlatform _platform;
   AppThemeMode _mode = AppThemeMode.system;
-  AppLanguage _language = AppLanguage.portuguese;
+  AppLanguage _language = AppLanguage.spanish;
   bool _disposed = false;
   bool _languageChosen = false;
 
