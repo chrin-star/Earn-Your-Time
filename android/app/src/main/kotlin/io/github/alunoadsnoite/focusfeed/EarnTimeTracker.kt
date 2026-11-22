@@ -39,10 +39,13 @@ internal class EarnTimeTracker(
     private var productiveRemainderMillis = 0L
     private var distractingRemainderMillis = 0L
 
-    private fun category(): EarnTimeCategory = when (foregroundPackage) {
-        in productive -> EarnTimeCategory.PRODUCTIVE
-        in distracting -> EarnTimeCategory.DISTRACTING
-        else -> EarnTimeCategory.IGNORED
+    private fun category(): EarnTimeCategory {
+        val packageName = foregroundPackage ?: return EarnTimeCategory.IGNORED
+        return when {
+            packageName in productive -> EarnTimeCategory.PRODUCTIVE
+            packageName in distracting -> EarnTimeCategory.DISTRACTING
+            else -> EarnTimeCategory.IGNORED
+        }
     }
 
     private fun accrueUntil(timestampMillis: Long): EarnTimeUsageDelta {
