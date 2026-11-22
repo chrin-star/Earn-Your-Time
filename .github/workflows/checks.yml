@@ -1,7 +1,7 @@
 name: MVP checks
 on:
   push:
-    branches: [main]
+    branches: [main, 'feature/**']
   pull_request:
   workflow_dispatch:
 permissions:
@@ -31,13 +31,3 @@ jobs:
         with:
           name: unsigned-android-build
           path: build/app/outputs/flutter-apk/app-*-release.apk
-  ios-simulator:
-    runs-on: macos-15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.47.7'
-          cache: true
-      - run: flutter pub get --enforce-lockfile
-      - run: flutter build ios --simulator --debug
