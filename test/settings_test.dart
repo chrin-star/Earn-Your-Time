@@ -64,7 +64,7 @@ void main() {
 
   test('invalid and missing languages default to Spanish', () {
     expect(AppLanguage.parse(null), AppLanguage.spanish);
-    expect(AppLanguage.parse('unknown'), AppLanguage.portuguese);
+    expect(AppLanguage.parse('unknown'), AppLanguage.spanish);
   });
 
   test('theme mode maps to the Flutter ThemeMode', () {
