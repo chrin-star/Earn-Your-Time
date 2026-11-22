@@ -44,7 +44,7 @@ class _FocusFeedAppState extends State<FocusFeedApp> {
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: _settings,
     builder: (context, _) => MaterialApp(
-      title: 'FocusFeed',
+      title: 'Earn Your Time',
       locale: _settings.language.locale,
       supportedLocales: AppLanguage.values.map((language) => language.locale),
       localizationsDelegates: const [
