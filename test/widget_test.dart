@@ -28,12 +28,12 @@ void main() {
     await tester.pumpWidget(FocusFeedApp(controller: c));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
-      find.text('Liberar Redes por 0 min'),
+      find.text('Desbloquear apps durante 0 min'),
       200,
       scrollable: find.byType(Scrollable).first,
     );
     final button = tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, 'Liberar Redes por 0 min'),
+      find.widgetWithText(FilledButton, 'Desbloquear apps durante 0 min'),
     );
     expect(button.onPressed, isNull);
     await tester.scrollUntilVisible(
