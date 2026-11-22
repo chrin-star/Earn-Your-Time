@@ -62,8 +62,8 @@ void main() {
     controller.dispose();
   });
 
-  test('invalid and missing languages default to Brazilian Portuguese', () {
-    expect(AppLanguage.parse(null), AppLanguage.portuguese);
+  test('invalid and missing languages default to Spanish', () {
+    expect(AppLanguage.parse(null), AppLanguage.spanish);
     expect(AppLanguage.parse('unknown'), AppLanguage.portuguese);
   });
 
