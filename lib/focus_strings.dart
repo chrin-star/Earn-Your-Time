@@ -14,7 +14,7 @@ enum AppLanguage {
 
   static AppLanguage parse(String? tag) => values.firstWhere(
     (language) => language.tag == tag,
-    orElse: () => portuguese,
+    orElse: () => spanish,
   );
 }
 
@@ -42,7 +42,7 @@ class FocusStrings {
 extension FocusLocalization on BuildContext {
   FocusStrings get strings =>
       Localizations.of<FocusStrings>(this, FocusStrings) ??
-      const FocusStrings(Locale('pt', 'BR'));
+      const FocusStrings(Locale('es', 'ES'));
 }
 
 class _FocusStringsDelegate extends LocalizationsDelegate<FocusStrings> {
