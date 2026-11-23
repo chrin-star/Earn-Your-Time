@@ -249,7 +249,8 @@ class _EarnTimeViewState extends State<EarnTimeView> {
     final minutes = int.tryParse(_allowanceInput.text.trim());
     final conversion = double.tryParse(_conversionInput.text.trim().replaceAll(',', '.'));
     if (minutes == null || minutes < 1 || minutes > 1440 ||
-        conversion == null || !conversion.isFinite || conversion < 0.01 || conversion > 100) {
+        conversion == null || !conversion.isFinite || conversion < 0.01 || conversion > 100 ||
+        ((conversion * 100) - (conversion * 100).round()).abs() > 0.000001) {
       setState(() => _settingsError = 'Usa un saldo entre 1 y 1440 minutos y una conversión entre 0,01 y 100 minutos.');
       return;
     }
@@ -420,7 +421,7 @@ class _EarnTimeViewState extends State<EarnTimeView> {
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(
             labelText: 'Minutos de distracción por 1 minuto productivo',
-            helperText: 'Ejemplos: 1 = 1 min, 2 = 2 min, 0,5 = 30 segundos.',
+            helperText: 'Ejemplos: 1 = 1 min, 2 = 2 min, 0,5 = 30 s. Admite hasta 2 decimales.',
             border: OutlineInputBorder(),
           ),
           onSubmitted: (_) => _commitNumericSettings(),
