@@ -221,6 +221,43 @@ class SettingsView extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           Text(
+            strings.text('Mantén el seguimiento activo'),
+            style: theme.textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.battery_saver_outlined),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Importante en Xiaomi y Redmi',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Para evitar que el sistema pause el conteo: abre Ajustes > Aplicaciones > Administrar aplicaciones > Earn Your Time > Ahorro de batería y selecciona «Sin restricciones». Si tu teléfono ofrece «Inicio automático», permite también Earn Your Time.',
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'En otros Android, permite el uso en segundo plano si el sistema lo solicita. No fuerces el cierre de la app ni retires los permisos de acceso al uso o de superposición mientras quieras que funcione. Android puede limitar los servicios en segundo plano según el fabricante.',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
             strings.text('Desenvolvedor'),
             style: theme.textTheme.titleMedium,
           ),
@@ -278,7 +315,7 @@ class SettingsView extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               child: Text(
                 strings.text(
-                  'FocusFeed é um Pomodoro offline com bloqueio de apps e recompensa proporcional. Não há conta, anúncios, analytics nem conexão de rede em tempo de execução. Todo o progresso fica no aparelho.',
+                  'Earn Your Time registra o uso das aplicações que você classifica, transforma tempo produtivo em saldo e ajuda a limitar apps de distração. O acompanhamento é local e o progresso fica salvo no aparelho.',
                 ),
               ),
             ),
