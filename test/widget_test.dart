@@ -167,6 +167,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Calendario de productividad'), findsOneWidget);
     expect(find.textContaining('Meta de referencia: 60 min'), findsOneWidget);
+    expect(find.text('Esta semana'), findsOneWidget);
+    expect(find.text('Racha actual'), findsOneWidget);
+    expect(find.text('Mejor día'), findsOneWidget);
     expect(find.text('Earn Your Time'), findsWidgets);
 
     await tester.pumpWidget(const SizedBox());
