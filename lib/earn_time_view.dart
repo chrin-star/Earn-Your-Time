@@ -690,9 +690,9 @@ class EarnTimeStatsView extends StatelessWidget {
     final h = seconds ~/ 3600;
     final m = (seconds % 3600) ~/ 60;
     final s = seconds % 60;
-    if (h > 0) return '${h} h ${m.toString().padLeft(2, '0')} min';
-    if (m > 0) return '${m} min';
-    return '${s} s';
+    if (h > 0) return '$h h ${m.toString().padLeft(2, '0')} min';
+    if (m > 0) return '$m min';
+    return '$s s';
   }
 
   @override
