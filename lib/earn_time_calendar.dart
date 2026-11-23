@@ -113,6 +113,8 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
             const SizedBox(height: 4),
             Text('Cada día se valora automáticamente según tu meta productiva.',
                 style: Theme.of(context).textTheme.bodyMedium),
+            const SizedBox(height: 12),
+            _weeklyOverview(context, data),
             const SizedBox(height: 16),
             Card(
               child: Padding(
@@ -306,6 +308,212 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
       },
     );
   }
+
+  Map<String, Map<String, dynamic>> _recordsByDate(
+      Map<String, dynamic> data) {
+    final records = <String, Map<String, dynamic>>{};
+    final history = (data['history'] as List?) ?? const [];
+    for (final item in history) {
+      if (item is Map && item['dayKey'] is String) {
+        records[item['dayKey'] as String] = Map<String, dynamic>.from(item);
+      }
+    }
+    final todayKey = data['dayKey'];
+    if (todayKey is String) {
+      records[todayKey] = {
+        'dayKey': todayKey,
+        'productiveSeconds': data['productiveSeconds'] ?? 0,
+        'earnedSeconds': data['earnedSeconds'] ?? 0,
+        'distractingSeconds': data['distractingSeconds'] ?? 0,
+        'goalSeconds': data['productivityGoalSeconds'] ?? 3600,
+      };
+    }
+    return records;
+  }
+
+  int _productive(Map<String, dynamic>? record) =>
+      (record?['productiveSeconds'] as num?)?.toInt() ?? 0;
+
+  int _goal(Map<String, dynamic>? record) =>
+      (record?['goalSeconds'] as num?)?.toInt() ?? 3600;
+
+  int _currentStreak(Map<String, dynamic> data) {
+    final records = _recordsByDate(data);
+    final now = DateTime.now();
+    var cursor = DateTime(now.year, now.month, now.day);
+    final todayRecord = records[_key(cursor)];
+    // Today's streak remains alive while the day is still in progress.
+    if (_productive(todayRecord) < _goal(todayRecord)) {
+      cursor = cursor.subtract(const Duration(days: 1));
+    }
+    var streak = 0;
+    for (var i = 0; i < 730; i++) {
+      final record = records[_key(cursor)];
+      if (record == null || _productive(record) < _goal(record)) break;
+      streak++;
+      cursor = cursor.subtract(const Duration(days: 1));
+    }
+    return streak;
+  }
+
+  MapEntry<String, int>? _bestDay(Map<String, dynamic> data) {
+    final records = _recordsByDate(data);
+    if (records.isEmpty) return null;
+    final best = records.entries
+        .map((entry) => MapEntry(entry.key, _productive(entry.value)))
+        .where((entry) => entry.value > 0)
+        .toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return best.isEmpty ? null : best.first;
+  }
+
+  Widget _weeklyOverview(BuildContext context, Map<String, dynamic> data) {
+    final records = _recordsByDate(data);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final monday = today.subtract(Duration(days: today.weekday - 1));
+    final days = List.generate(7, (index) => monday.add(Duration(days: index)));
+    final weeklySeconds = days.fold<int>(
+        0, (sum, day) => sum + _productive(records[_key(day)]));
+    final completed = days
+        .where((day) => !day.isAfter(today))
+        .where((day) {
+          final record = records[_key(day)];
+          return record != null && _productive(record) >= _goal(record);
+        }).length;
+    final streak = _currentStreak(data);
+    final best = _bestDay(data);
+    final dateLabel = '${monday.day}/${monday.month} – ${days.last.day}/${days.last.month}';
+    final goal = (data['productivityGoalSeconds'] as num?)?.toInt() ?? 3600;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text('Esta semana',
+                      style: Theme.of(context).textTheme.titleLarge),
+                ),
+                Text(dateLabel,
+                    style: Theme.of(context).textTheme.bodySmall),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: _statMetric(context, _duration(weeklySeconds),
+                      'Tiempo productivo'),
+                ),
+                Expanded(
+                  child: _statMetric(context, '$completed/7',
+                      'Días con meta'),
+                ),
+                Expanded(
+                  child: _statMetric(context, '$streak',
+                      'Racha actual'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              height: 76,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: days.map((day) {
+                  final record = records[_key(day)];
+                  final seconds = _productive(record);
+                  final progress = goal <= 0
+                      ? 0.0
+                      : (seconds / goal).clamp(0.0, 1.0);
+                  final future = day.isAfter(today);
+                  return Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 3),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(seconds == 0 ? '' : '${(seconds / 60).round()}',
+                              style: Theme.of(context).textTheme.labelSmall),
+                          const SizedBox(height: 4),
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.bottomCenter,
+                              child: Container(
+                                width: 18,
+                                height: future ? 2 : 8 + 42 * progress,
+                                decoration: BoxDecoration(
+                                  color: future
+                                      ? Theme.of(context).colorScheme.outlineVariant
+                                      : seconds >= goal
+                                          ? Colors.green.shade600
+                                          : Theme.of(context).colorScheme.primary.withValues(alpha: 0.65),
+                                  borderRadius: BorderRadius.circular(5),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(['L', 'M', 'X', 'J', 'V', 'S', 'D'][day.weekday - 1],
+                              style: Theme.of(context).textTheme.labelSmall),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            const Divider(height: 22),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _statMetric(
+                    context,
+                    best == null ? '—' : _duration(best.value),
+                    'Mejor día',
+                    subtitle: best == null
+                        ? 'Aún sin registros'
+                        : best.key.split('-').reversed.join('/'),
+                  ),
+                ),
+                Expanded(
+                  child: _statMetric(context, '$goalMinutesLabel',
+                      'Meta diaria'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text('La racha cuenta días consecutivos que alcanzan la meta.',
+                style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String get goalMinutesLabel => '${(60).toString()} min';
+
+  Widget _statMetric(BuildContext context, String value, String label,
+      {String? subtitle}) =>
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  )),
+          Text(label, style: Theme.of(context).textTheme.labelSmall),
+          if (subtitle != null)
+            Text(subtitle, style: Theme.of(context).textTheme.labelSmall),
+        ],
+      );
 
   Widget _legend(BuildContext context, Color color, String label) => Row(
         mainAxisSize: MainAxisSize.min,
