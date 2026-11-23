@@ -245,6 +245,6 @@ class _FakeSettingsPlatform implements SettingsPlatform {
 
 
 Future<void> _openFocus(WidgetTester tester) async {
-  await tester.tap(find.text('Foco'));
+  await tester.tap(find.text('Enfoque'));
   await tester.pumpAndSettle();
 }
