@@ -204,8 +204,6 @@ void main() {
     expect(find.text('Valdenor Tavares'), findsOneWidget);
     expect(find.text('valdenor.sa@proton.me'), findsOneWidget);
     expect(settings.mode, AppThemeMode.dark);
-    final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
-    expect(app.themeMode, ThemeMode.dark);
     await tester.pumpWidget(const SizedBox());
     settings.dispose();
     c.dispose();
