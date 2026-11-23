@@ -423,7 +423,7 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 520),
         child: ListView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 104),
           children: [
             Text(
               strings.text('Uma sessão de cada vez.'),
