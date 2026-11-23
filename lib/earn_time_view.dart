@@ -235,7 +235,14 @@ class _EarnTimeViewState extends State<EarnTimeView> {
   void _syncSettingsInputs() {
     _allowanceInput.text = (_allowance ~/ 60).toString();
     final conversion = _numerator / _denominator;
-    _conversionInput.text = conversion.toStringAsFixed(2).replaceFirst(RegExp(r'\\.?0+
+    var formatted = conversion.toStringAsFixed(2);
+    while (formatted.contains('.') && formatted.endsWith('0')) {
+      formatted = formatted.substring(0, formatted.length - 1);
+    }
+    if (formatted.endsWith('.')) {
+      formatted = formatted.substring(0, formatted.length - 1);
+    }
+    _conversionInput.text = formatted;
   }
 
   void _commitNumericSettings() {
