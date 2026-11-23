@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="earn_block_heading">Se acabó tu tiempo de distracción</string>
+    <string name="earn_block_detail">Saldo disponible: 0 min. Usa una aplicación productiva para ganar más tiempo.</string>
+    <string name="earn_block_back">Volver a Earn Your Time</string>
+    <string name="earn_block_accessibility">Bloqueo de Earn Your Time. %1$s</string>
     <string name="block_heading">Estás en una sesión de enfoque. Mantén la concentración.</string>
     <string name="block_back">Volver a FocusFeed</string>
     <string name="block_accessibility">Pantalla de bloqueo de FocusFeed. %1$s</string>
