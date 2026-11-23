@@ -13,6 +13,11 @@ void main() {
   const earnTimeChannel = MethodChannel('focusfeed/earn_time');
   setUp(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          FocusPermissions.channel,
+          (_) async => {'supported': true, 'usage': true, 'overlay': true},
+        );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(earnTimeChannel, (call) async {
           switch (call.method) {
             case 'status':
@@ -37,12 +42,6 @@ void main() {
               return null;
           }
         });
-  setUp(() {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          FocusPermissions.channel,
-          (_) async => {'supported': true, 'usage': true, 'overlay': true},
-        );
   });
   tearDown(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
