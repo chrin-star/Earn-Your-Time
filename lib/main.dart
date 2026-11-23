@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'focus_strings.dart';
+import 'earn_time_view.dart';
 
 import 'history_view.dart';
 import 'permissions.dart';
@@ -86,6 +87,7 @@ class FocusScreen extends StatefulWidget {
 
 class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
   late final SessionController _controller;
+  late final EarnTimeController _earnTime;
   int? _rewardChoice;
   String _search = '';
   int _index = 0;
@@ -95,6 +97,7 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     _controller = widget.controller ?? SessionController(now: widget.now);
+    _earnTime = EarnTimeController();
     _controller.addListener(_changed);
     WidgetsBinding.instance.addObserver(this);
     unawaited(_controller.initialize());
@@ -108,13 +111,17 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final resumed = state == AppLifecycleState.resumed;
     _controller.setForeground(resumed);
-    if (resumed) unawaited(_controller.refresh());
+    if (resumed) {
+      unawaited(_controller.refresh());
+      unawaited(_earnTime.refresh());
+    }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _controller.removeListener(_changed);
+    _earnTime.dispose();
     _searchController.dispose();
     if (widget.controller == null) _controller.dispose();
     super.dispose();
@@ -182,7 +189,8 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
       appBar: AppBar(
         title: Text(
           [
-            'FocusFeed',
+            'Earn Your Time',
+            strings.text('Foco'),
             strings.text('Histórico'),
             strings.text('Ajustes'),
           ][_index],
@@ -190,8 +198,9 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
       ),
       body: SafeArea(
         child: switch (_index) {
-          0 => _focusTab(context, c, s),
-          1 => HistoryView(state: s, now: c.now),
+          0 => EarnTimeView(apps: c.apps, controller: _earnTime),
+          1 => _focusTab(context, c, s),
+          2 => HistoryView(state: s, now: c.now),
           _ => SettingsView(controller: widget.settings),
         },
       ),
@@ -199,6 +208,11 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
         selectedIndex: _index,
         onDestinationSelected: (value) => setState(() => _index = value),
         destinations: [
+          const NavigationDestination(
+            icon: Icon(Icons.hourglass_bottom_outlined),
+            selectedIcon: Icon(Icons.hourglass_bottom),
+            label: 'Earn Time',
+          ),
           NavigationDestination(
             icon: const Icon(Icons.timer_outlined),
             selectedIcon: const Icon(Icons.timer),
