@@ -540,7 +540,6 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
                               style: Theme.of(context).textTheme.displayMedium?.copyWith(
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: -1.5,
-                                fontFeatures: const [FontFeature.tabularFigures()],
                               ),
                             ),
                           ),
