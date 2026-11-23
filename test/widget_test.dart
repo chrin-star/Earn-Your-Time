@@ -179,6 +179,16 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Ajustes'));
     await tester.pumpAndSettle();
+    // Select the theme while its control is visible near the top of settings.
+    await tester.ensureVisible(find.byKey(const Key('themeMode')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Oscuro'));
+    await tester.pumpAndSettle();
+    expect(settings.mode, AppThemeMode.dark);
+    final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
+    expect(app.themeMode, ThemeMode.dark);
+
+    // Then verify the help and developer sections farther down the page.
     await tester.scrollUntilVisible(
       find.text('Importante en Xiaomi y Redmi'),
       180,
@@ -193,8 +203,6 @@ void main() {
     );
     expect(find.text('Valdenor Tavares'), findsOneWidget);
     expect(find.text('valdenor.sa@proton.me'), findsOneWidget);
-    await tester.tap(find.text('Oscuro'));
-    await tester.pumpAndSettle();
     expect(settings.mode, AppThemeMode.dark);
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
     expect(app.themeMode, ThemeMode.dark);
