@@ -12,8 +12,8 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.Handler
+import android.os.HandlerThread
 import android.os.IBinder
-import android.os.Looper
 import android.os.PowerManager
 
 /**
@@ -30,7 +30,8 @@ class EarnTimeMonitorService : Service() {
         private const val OVERLAP_MS = 10_000L
     }
 
-    private val main = Handler(Looper.getMainLooper())
+    private lateinit var workerThread: HandlerThread
+    private lateinit var worker: Handler
     private var processor: EarnTimeUsageEventProcessor? = null
     private var lastQueryWallTime = 0L
     private var destroyed = false
@@ -83,13 +84,16 @@ class EarnTimeMonitorService : Service() {
                 }
 
                 EarnTimeStore.record(this@EarnTimeMonitorService, delta)
-                if (nowElapsed - lastSaveElapsed >= 15_000L) lastSaveElapsed = nowElapsed
-                main.postDelayed(this, if (usable) POLL_ACTIVE_MS else POLL_IDLE_MS)
+                if (nowElapsed - lastSaveElapsed >= 15_000L) {
+                    EarnTimeStore.flush(this@EarnTimeMonitorService)
+                    lastSaveElapsed = nowElapsed
+                }
+                worker.postDelayed(this, if (usable) POLL_ACTIVE_MS else POLL_IDLE_MS)
             } catch (_: SecurityException) {
                 stopSelf()
             } catch (_: Exception) {
                 // Keep the service alive; a later UsageStats window may recover.
-                main.postDelayed(this, POLL_IDLE_MS)
+                worker.postDelayed(this, POLL_IDLE_MS)
             }
         }
     }
@@ -97,6 +101,8 @@ class EarnTimeMonitorService : Service() {
     override fun onCreate() {
         super.onCreate()
         running = true
+        workerThread = HandlerThread("EarnTimeUsageMonitor").apply { start() }
+        worker = Handler(workerThread.looper)
         promote()
     }
 
@@ -129,15 +135,15 @@ class EarnTimeMonitorService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
-        main.removeCallbacks(poll)
-        main.post(poll)
+        worker.removeCallbacks(poll)
+        worker.post(poll)
         return START_STICKY
     }
 
     override fun onDestroy() {
         destroyed = true
         running = false
-        main.removeCallbacksAndMessages(null)
+        worker.removeCallbacksAndMessages(null)
         processor?.let {
             try {
                 val nowWall = System.currentTimeMillis()
@@ -145,6 +151,8 @@ class EarnTimeMonitorService : Service() {
                 EarnTimeStore.record(this, it.process(emptyList(), nowWall, nowElapsed, false))
             } catch (_: Exception) { }
         }
+        EarnTimeStore.flush(this)
+        workerThread.quitSafely()
         stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
     }
