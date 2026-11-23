@@ -114,7 +114,7 @@ class EarnTimeMonitorService : Service() {
             )
         }
         val builder = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, "earn_time_monitor")
-            else @Suppress("DEPRECATION") Notification.Builder(this)
+            else legacyNotificationBuilder()
         val notification = builder
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("Earn Your Time")
@@ -129,6 +129,9 @@ class EarnTimeMonitorService : Service() {
             startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
         } else startForeground(NOTIFICATION_ID, notification)
     }
+
+    @Suppress("DEPRECATION")
+    private fun legacyNotificationBuilder() = Notification.Builder(this)
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (!NativeAccess.usage(this)) {
