@@ -13,6 +13,103 @@ import 'rewards.dart';
 import 'session_controller.dart';
 import 'settings.dart';
 
+ThemeData _buildAppTheme(Brightness brightness) {
+  final scheme = ColorScheme.fromSeed(
+    seedColor: const Color(0xFF0F9D8A),
+    brightness: brightness,
+    surface: brightness == Brightness.dark
+        ? const Color(0xFF111A1B)
+        : const Color(0xFFF6F9F8),
+  );
+  return ThemeData(
+    useMaterial3: true,
+    brightness: brightness,
+    colorScheme: scheme,
+    scaffoldBackgroundColor: scheme.surface,
+    visualDensity: VisualDensity.standard,
+    appBarTheme: AppBarTheme(
+      backgroundColor: scheme.surface,
+      foregroundColor: scheme.onSurface,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      centerTitle: false,
+      titleTextStyle: TextStyle(
+        color: scheme.onSurface,
+        fontSize: 19,
+        fontWeight: FontWeight.w800,
+        letterSpacing: -0.4,
+      ),
+    ),
+    cardTheme: CardThemeData(
+      color: brightness == Brightness.dark
+          ? const Color(0xFF1A2526)
+          : Colors.white,
+      elevation: 0,
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(22),
+        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.45)),
+      ),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: brightness == Brightness.dark
+          ? const Color(0xFF202D2E)
+          : const Color(0xFFEEF4F2),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: scheme.primary, width: 1.5),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+    ),
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: brightness == Brightness.dark
+          ? const Color(0xFF151F20)
+          : Colors.white,
+      indicatorColor: scheme.primaryContainer,
+      elevation: 0,
+      height: 72,
+      labelTextStyle: WidgetStateProperty.resolveWith((states) => TextStyle(
+        fontSize: 11,
+        fontWeight: states.contains(WidgetState.selected)
+            ? FontWeight.w700
+            : FontWeight.w500,
+      )),
+    ),
+    tabBarTheme: TabBarThemeData(
+      dividerColor: Colors.transparent,
+      indicatorSize: TabBarIndicatorSize.tab,
+      labelStyle: const TextStyle(fontWeight: FontWeight.w700),
+      unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
+      indicator: BoxDecoration(
+        color: scheme.primaryContainer,
+        borderRadius: BorderRadius.circular(14),
+      ),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        minimumSize: const Size(0, 48),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        textStyle: const TextStyle(fontWeight: FontWeight.w700),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(0, 46),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    ),
+  );
+}
+
 void main() => runApp(const FocusFeedApp());
 
 class FocusFeedApp extends StatefulWidget {
@@ -54,12 +151,8 @@ class _FocusFeedAppState extends State<FocusFeedApp> {
         ...GlobalMaterialLocalizations.delegates,
       ],
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(colorSchemeSeed: Colors.teal, useMaterial3: true),
-      darkTheme: ThemeData(
-        colorSchemeSeed: Colors.teal,
-        brightness: Brightness.dark,
-        useMaterial3: true,
-      ),
+      theme: _buildAppTheme(Brightness.light),
+      darkTheme: _buildAppTheme(Brightness.dark),
       themeMode: _settings.mode.themeMode,
       home: FocusScreen(
         now: widget.now,
@@ -188,14 +281,44 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
     }
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          [
-            'Inicio',
-            'Aplicaciones',
-            strings.text('Foco'),
-            'Estadísticas',
-            strings.text('Ajustes'),
-          ][_index],
+        toolbarHeight: 68,
+        title: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Icon(
+                Icons.hourglass_bottom_rounded,
+                color: Theme.of(context).colorScheme.onPrimaryContainer,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 11),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text('Earn Your Time'),
+                Text(
+                  [
+                    'Tu espacio de productividad',
+                    'Gestiona tus aplicaciones',
+                    strings.text('Foco'),
+                    'Tu progreso',
+                    strings.text('Ajustes'),
+                  ][_index],
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
       body: SafeArea(
