@@ -24,6 +24,13 @@ class EarnTimeDayTest {
         assertEquals(3600L, day.earnedSeconds)
     }
 
+    @Test fun decimalMinuteConversionSupportsHalfMinutePerProductiveMinute() {
+        val settings = oneToOne.copy(rewardNumerator = 1, rewardDenominator = 2)
+        val day = EarnTimeDay("2026-11-22")
+        day.recordProductive(60, "2026-11-22", settings)
+        assertEquals(30L, day.earnedSeconds)
+    }
+
     @Test fun fractionalRatioCarriesRemainderWithinTheSameDay() {
         val settings = oneToOne.copy(rewardNumerator = 1, rewardDenominator = 2)
         val day = EarnTimeDay("2026-11-22")
