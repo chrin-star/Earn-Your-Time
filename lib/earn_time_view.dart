@@ -20,6 +20,9 @@ class EarnTimePlatform {
 
   Future<void> requestUsageAccess() =>
       permissions.invokeMethod<void>('request', {'permission': 'usage'});
+
+  Future<void> requestOverlayAccess() =>
+      permissions.invokeMethod<void>('request', {'permission': 'overlay'});
 }
 
 class EarnTimeController extends ChangeNotifier {
@@ -34,6 +37,7 @@ class EarnTimeController extends ChangeNotifier {
 
   bool get monitorRunning => data['monitorRunning'] == true;
   bool get usagePermission => data['usagePermission'] == true;
+  bool get overlayPermission => data['overlayPermission'] == true;
   int value(String key, [int fallback = 0]) =>
       (data[key] as num?)?.toInt() ?? fallback;
   Set<String> packages(String key) =>
@@ -139,6 +143,18 @@ class EarnTimeController extends ChangeNotifier {
       _notify();
     } catch (_) {
       error = 'No se pudieron abrir los permisos.';
+      _notify();
+    }
+  }
+
+  Future<void> requestOverlayAccess() async {
+    try {
+      await _platform.requestOverlayAccess();
+    } on PlatformException catch (e) {
+      error = e.message ?? 'No se pudo abrir el permiso de superposición.';
+      _notify();
+    } catch (_) {
+      error = 'No se pudo abrir el permiso de superposición.';
       _notify();
     }
   }
@@ -365,7 +381,9 @@ class _EarnTimeViewState extends State<EarnTimeView> {
             title: Text(c.monitorRunning ? 'Seguimiento activo' : 'Seguimiento detenido'),
             subtitle: Text(
               usagePermission
-                  ? 'El registro funciona en segundo plano con una notificación persistente.'
+                  ? (c.overlayPermission
+                      ? 'Seguimiento y bloqueo automático disponibles.'
+                      : 'Falta el permiso para mostrar la pantalla de bloqueo sobre otras apps.')
                   : 'Necesitas permitir el acceso al uso de aplicaciones.',
             ),
             trailing: c.monitorRunning
@@ -376,10 +394,18 @@ class _EarnTimeViewState extends State<EarnTimeView> {
                 : FilledButton(
                     onPressed: c.busy
                         ? null
-                        : usagePermission
-                            ? c.start
-                            : c.requestUsageAccess,
-                    child: Text(usagePermission ? 'Iniciar' : 'Permitir'),
+                        : !usagePermission
+                            ? c.requestUsageAccess
+                            : !c.overlayPermission
+                                ? c.requestOverlayAccess
+                                : c.start,
+                    child: Text(
+                      !usagePermission
+                          ? 'Permitir acceso'
+                          : !c.overlayPermission
+                              ? 'Activar bloqueo'
+                              : 'Iniciar',
+                    ),
                   ),
           ),
         ),
@@ -393,8 +419,8 @@ class _EarnTimeViewState extends State<EarnTimeView> {
         Card(
           child: ListTile(
             leading: const Icon(Icons.info_outline),
-            title: const Text('Seguimiento en fase de prueba'),
-            subtitle: const Text('Esta versión contabiliza el tiempo de las aplicaciones. El bloqueo automático al llegar a cero todavía no está implementado.'),
+            title: const Text('Bloqueo automático'),
+            subtitle: const Text('Cuando el saldo llegue a cero, las aplicaciones que marcaste como distractoras mostrarán una pantalla de bloqueo. Necesita el permiso «Mostrar sobre otras aplicaciones».'),
           ),
         ),
         const SizedBox(height: 12),
