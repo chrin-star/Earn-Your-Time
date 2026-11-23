@@ -104,18 +104,13 @@ void main() {
       await tester.pumpAndSettle();
       await _openFocus(tester);
       expect(find.text('15:00'), findsOneWidget);
+      expect(find.text('Celular reiniciado.'), findsOneWidget);
       await tester.scrollUntilVisible(
         find.text('Reanudar enfoque'),
         120,
         scrollable: find.byType(Scrollable).first,
       );
       expect(find.text('Reanudar enfoque'), findsOneWidget);
-      await tester.scrollUntilVisible(
-        find.text('Celular reiniciado.'),
-        120,
-        scrollable: find.byType(Scrollable).first,
-      );
-      expect(find.text('Celular reiniciado.'), findsOneWidget);
       await tester.scrollUntilVisible(find.text('Saldo: 5 min 12 s'), 200);
       expect(find.text('Saldo: 5 min 12 s'), findsOneWidget);
       await tester.pumpWidget(const SizedBox());
@@ -253,21 +248,16 @@ void main() {
     await tester.tap(find.text('Enfoque'));
     await tester.pumpAndSettle();
     expect(find.text('15:00'), findsOneWidget);
+    expect(
+      find.text('Enfoque completado. La recompensa se añadió al saldo.'),
+      findsOneWidget,
+    );
     await tester.scrollUntilVisible(
       find.text('Reanudar enfoque'),
       120,
       scrollable: find.byType(Scrollable).first,
     );
     expect(find.text('Reanudar enfoque'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.text('Enfoque completado. La recompensa se añadió al saldo.'),
-      120,
-      scrollable: find.byType(Scrollable).first,
-    );
-    expect(
-      find.text('Enfoque completado. La recompensa se añadió al saldo.'),
-      findsOneWidget,
-    );
     await tester.pumpWidget(const SizedBox());
     settings.dispose();
     controller.dispose();
