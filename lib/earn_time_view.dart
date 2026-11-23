@@ -168,6 +168,10 @@ class EarnTimeView extends StatefulWidget {
 
 class _EarnTimeViewState extends State<EarnTimeView> {
   final _search = TextEditingController();
+  final _allowanceInput = TextEditingController();
+  final _numeratorInput = TextEditingController();
+  final _denominatorInput = TextEditingController();
+  String? _settingsError;
   late Set<String> _productive;
   late Set<String> _distracting;
   late int _allowance;
@@ -191,6 +195,7 @@ class _EarnTimeViewState extends State<EarnTimeView> {
       _allowance = widget.controller.value('dailyAllowanceSeconds', 1800);
       _numerator = widget.controller.value('rewardNumerator', 1);
       _denominator = widget.controller.value('rewardDenominator', 1);
+      _syncSettingsInputs();
       _loaded = true;
     }
     setState(() {});
@@ -205,6 +210,7 @@ class _EarnTimeViewState extends State<EarnTimeView> {
     _allowance = widget.controller.value('dailyAllowanceSeconds', 1800);
     _numerator = widget.controller.value('rewardNumerator', 1);
     _denominator = widget.controller.value('rewardDenominator', 1);
+    _syncSettingsInputs();
     _loaded = data.isNotEmpty;
     if (mounted) setState(() {});
   }
@@ -213,6 +219,9 @@ class _EarnTimeViewState extends State<EarnTimeView> {
   void dispose() {
     widget.controller.removeListener(_changed);
     _search.dispose();
+    _allowanceInput.dispose();
+    _numeratorInput.dispose();
+    _denominatorInput.dispose();
     super.dispose();
   }
 
@@ -223,6 +232,31 @@ class _EarnTimeViewState extends State<EarnTimeView> {
     if (hours > 0) return '${hours} h ${minutes.toString().padLeft(2, '0')} min';
     if (minutes > 0) return '$minutes min';
     return '$secs s';
+  }
+
+  void _syncSettingsInputs() {
+    _allowanceInput.text = (_allowance ~/ 60).toString();
+    _numeratorInput.text = _numerator.toString();
+    _denominatorInput.text = _denominator.toString();
+  }
+
+  void _commitNumericSettings() {
+    final minutes = int.tryParse(_allowanceInput.text.trim());
+    final numerator = int.tryParse(_numeratorInput.text.trim());
+    final denominator = int.tryParse(_denominatorInput.text.trim());
+    if (minutes == null || minutes < 1 || minutes > 1440 ||
+        numerator == null || numerator < 1 || numerator > 100 ||
+        denominator == null || denominator < 1 || denominator > 100) {
+      setState(() => _settingsError = 'Usa minutos entre 1 y 1440 y una proporción entre 1 y 100.');
+      return;
+    }
+    setState(() {
+      _allowance = minutes * 60;
+      _numerator = numerator;
+      _denominator = denominator;
+      _settingsError = null;
+    });
+    _save();
   }
 
   Future<void> _save() => widget.controller.configure(
@@ -352,45 +386,60 @@ class _EarnTimeViewState extends State<EarnTimeView> {
         const SizedBox(height: 4),
         const Text('Este es el saldo con el que comienzas cada día; el tiempo productivo se suma y el distractor se descuenta.'),
         const SizedBox(height: 8),
-        DropdownButtonFormField<int>(
-          value: _allowance ~/ 60,
+        TextField(
+          controller: _allowanceInput,
+          keyboardType: TextInputType.number,
           decoration: const InputDecoration(
-            labelText: 'Saldo base diario',
+            labelText: 'Saldo base diario (minutos)',
+            helperText: 'Puedes escribir cualquier valor entre 1 y 1440.',
             border: OutlineInputBorder(),
           ),
-          items: [5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240]
-              .map((minutes) => DropdownMenuItem(
-                    value: minutes,
-                    child: Text('$minutes minutos'),
-                  ))
-              .toList(),
-          onChanged: c.busy ? null : (value) {
-            if (value == null) return;
-            setState(() => _allowance = value * 60);
-            _save();
-          },
+          onSubmitted: (_) => _commitNumericSettings(),
         ),
         const SizedBox(height: 12),
-        DropdownButtonFormField<String>(
-          value: '$_numerator:$_denominator',
-          decoration: const InputDecoration(
-            labelText: 'Recompensa por tiempo productivo',
-            border: OutlineInputBorder(),
-          ),
-          items: const [
-            DropdownMenuItem(value: '1:1', child: Text('1 min productivo = 1 min de saldo')),
-            DropdownMenuItem(value: '1:2', child: Text('2 min productivos = 1 min de saldo')),
-            DropdownMenuItem(value: '1:3', child: Text('3 min productivos = 1 min de saldo')),
-            DropdownMenuItem(value: '1:4', child: Text('4 min productivos = 1 min de saldo')),
-            DropdownMenuItem(value: '2:1', child: Text('1 min productivo = 2 min de saldo')),
+        Text('Proporción de recompensa', style: theme.textTheme.titleMedium),
+        const Text('Saldo ganado por cada segundo productivo: numerador ÷ denominador. Ejemplo: 1 / 2 equivale a medio segundo de saldo.'),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _numeratorInput,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Numerador',
+                  border: OutlineInputBorder(),
+                ),
+                onSubmitted: (_) => _commitNumericSettings(),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              child: Text('÷'),
+            ),
+            Expanded(
+              child: TextField(
+                controller: _denominatorInput,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Denominador',
+                  border: OutlineInputBorder(),
+                ),
+                onSubmitted: (_) => _commitNumericSettings(),
+              ),
+            ),
           ],
-          onChanged: c.busy ? null : (value) {
-            if (value == null) return;
-            final parts = value.split(':').map(int.parse).toList();
-            setState(() { _numerator = parts[0]; _denominator = parts[1]; });
-            _save();
-          },
         ),
+        const SizedBox(height: 8),
+        FilledButton.tonal(
+          onPressed: c.busy ? null : _commitNumericSettings,
+          child: const Text('Guardar configuración'),
+        ),
+        if (_settingsError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(_settingsError!, style: TextStyle(color: theme.colorScheme.error)),
+          ),
         const SizedBox(height: 20),
         Text('Clasifica tus aplicaciones', style: theme.textTheme.titleLarge),
         const SizedBox(height: 4),
