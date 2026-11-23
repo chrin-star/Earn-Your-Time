@@ -16,6 +16,7 @@ internal object EarnTimeStore {
     private const val KEY_ALLOWANCE = "daily_allowance_seconds"
     private const val KEY_NUMERATOR = "reward_numerator"
     private const val KEY_DENOMINATOR = "reward_denominator"
+    @Volatile private var cachedDay: EarnTimeDay? = null
 
     private fun prefs(context: Context) =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -59,12 +60,17 @@ internal object EarnTimeStore {
         if (delta == EarnTimeUsageDelta()) return
         val p = prefs(context)
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(Date())
-        val raw = p.getString(KEY_DAY, null)
-        val day = if (raw == null) EarnTimeDay(today) else decodeDay(raw)
+        val day = cachedDay ?: p.getString(KEY_DAY, null)?.let(::decodeDay) ?: EarnTimeDay(today)
         val settings = settings(context)
         day.recordProductive(delta.productiveSeconds, today, settings)
         day.recordDistracting(delta.distractingSeconds, today, settings)
-        check(p.edit().putString(KEY_DAY, encodeDay(day)).commit()) {
+        cachedDay = day
+    }
+
+    @Synchronized
+    fun flush(context: Context) {
+        val day = cachedDay ?: return
+        check(prefs(context).edit().putString(KEY_DAY, encodeDay(day)).commit()) {
             "No se pudo guardar el progreso de Earn Your Time."
         }
     }
@@ -73,9 +79,10 @@ internal object EarnTimeStore {
     fun snapshot(context: Context): Map<String, Any> {
         val p = prefs(context)
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(Date())
-        val day = p.getString(KEY_DAY, null)?.let(::decodeDay) ?: EarnTimeDay(today)
+        val day = cachedDay ?: p.getString(KEY_DAY, null)?.let(::decodeDay) ?: EarnTimeDay(today)
         val settings = settings(context)
         day.rollTo(today)
+        cachedDay = day
         return mapOf(
             "productiveSeconds" to day.productiveSeconds,
             "earnedSeconds" to day.earnedSeconds,
