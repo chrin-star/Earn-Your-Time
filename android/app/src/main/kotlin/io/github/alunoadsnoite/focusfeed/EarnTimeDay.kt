@@ -15,7 +15,7 @@ data class EarnTimeSettings(
         require(dailyAllowanceSeconds in 60..86_400) {
             "El límite diario debe estar entre 1 minuto y 24 horas."
         }
-        require(rewardNumerator in 1..100 && rewardDenominator in 1..100) {
+        require(rewardNumerator in 1..10_000 && rewardDenominator in 1..10_000) {
             "La proporción de recompensa no es válida."
         }
     }
