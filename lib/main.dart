@@ -497,21 +497,68 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
                   : null,
             ),
             const SizedBox(height: 24),
-            Semantics(
-              label: strings.text('Tempo restante de foco'),
-              value: _time(s.focusRemaining),
-              child: Text(
-                _time(s.focusRemaining),
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.displayLarge,
+            const SizedBox(height: 12),
+            Center(
+              child: Container(
+                width: 244,
+                height: 244,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Theme.of(context).colorScheme.surfaceContainerLow,
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.45),
+                  ),
+                ),
+                padding: const EdgeInsets.all(17),
+                child: Semantics(
+                  label: strings.text('Progresso do foco'),
+                  value: '${(progress * 100).round()}%',
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      SizedBox.expand(
+                        child: CircularProgressIndicator(
+                          value: progress,
+                          strokeWidth: 9,
+                          strokeCap: StrokeCap.round,
+                          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        ),
+                      ),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.self_improvement_rounded,
+                              color: Theme.of(context).colorScheme.primary,
+                              size: 25),
+                          const SizedBox(height: 8),
+                          Semantics(
+                            label: strings.text('Tempo restante de foco'),
+                            value: _time(s.focusRemaining),
+                            child: Text(
+                              _time(s.focusRemaining),
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -1.5,
+                                fontFeatures: const [FontFeature.tabularFigures()],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            '${(progress * 100).round()}% completado',
+                            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 16),
-            Semantics(
-              label: strings.text('Progresso do foco'),
-              value: '${(progress * 100).round()}%',
-              child: LinearProgressIndicator(value: progress),
-            ),
+            const SizedBox(height: 20),
             const SizedBox(height: 24),
             Wrap(
               alignment: WrapAlignment.center,
