@@ -13,12 +13,12 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
+import android.os.Looper
 import android.os.IBinder
 import android.os.PowerManager
 
 /**
- * Explicitly started, low-frequency UsageStats monitor. It does not block apps
- * yet; it is the first real-device tracking milestone.
+ * Explicitly started UsageStats monitor and soft blocker for selected distracting apps.
  */
 class EarnTimeMonitorService : Service() {
     companion object {
@@ -32,6 +32,8 @@ class EarnTimeMonitorService : Service() {
 
     private lateinit var workerThread: HandlerThread
     private lateinit var worker: Handler
+    private val main = Handler(Looper.getMainLooper())
+    private lateinit var overlay: BlockingOverlay
     private var processor: EarnTimeUsageEventProcessor? = null
     private var lastQueryWallTime = 0L
     private var destroyed = false
@@ -84,6 +86,21 @@ class EarnTimeMonitorService : Service() {
                 }
 
                 EarnTimeStore.record(this@EarnTimeMonitorService, delta)
+                val categories = EarnTimeStore.categories(this@EarnTimeMonitorService)
+                val foregroundPackage = processor?.foregroundPackage()
+                val remaining = (EarnTimeStore.snapshot(this@EarnTimeMonitorService)["remainingSeconds"] as? Number)?.toLong() ?: 0L
+                val shouldBlock = EarnTimeBlockPolicy.shouldBlock(
+                    foregroundPackage = foregroundPackage,
+                    ownPackage = packageName,
+                    distractingPackages = categories.second,
+                    remainingSeconds = remaining,
+                    deviceUsable = usable,
+                )
+                main.post {
+                    if (!destroyed) {
+                        if (shouldBlock) overlay.showEarnTime() else overlay.hide()
+                    }
+                }
                 if (nowElapsed - lastSaveElapsed >= 15_000L) {
                     EarnTimeStore.flush(this@EarnTimeMonitorService)
                     lastSaveElapsed = nowElapsed
@@ -101,6 +118,7 @@ class EarnTimeMonitorService : Service() {
     override fun onCreate() {
         super.onCreate()
         running = true
+        overlay = BlockingOverlay(this)
         workerThread = HandlerThread("EarnTimeUsageMonitor").apply { start() }
         worker = Handler(workerThread.looper)
         promote()
@@ -134,7 +152,7 @@ class EarnTimeMonitorService : Service() {
     private fun legacyNotificationBuilder() = Notification.Builder(this)
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (!NativeAccess.usage(this)) {
+        if (!NativeAccess.usage(this) || !android.provider.Settings.canDrawOverlays(this)) {
             stopSelf()
             return START_NOT_STICKY
         }
@@ -146,6 +164,7 @@ class EarnTimeMonitorService : Service() {
     override fun onDestroy() {
         destroyed = true
         running = false
+        overlay.hide()
         worker.removeCallbacks(poll)
         worker.post {
             processor?.let {
