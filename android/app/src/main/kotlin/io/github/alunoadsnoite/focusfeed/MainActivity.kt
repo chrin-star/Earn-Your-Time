@@ -18,6 +18,47 @@ class MainActivity : FlutterActivity() {
     private var notificationResult: MethodChannel.Result? = null
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "focusfeed/earn_time")
+            .setMethodCallHandler { call, result ->
+                try {
+                    when (call.method) {
+                        "configure" -> {
+                            val productive = (call.argument<List<String>>("productivePackages") ?: emptyList()).toSet()
+                            val distracting = (call.argument<List<String>>("distractingPackages") ?: emptyList()).toSet()
+                            EarnTimeStore.configure(this, productive, distracting)
+                            val allowance = call.argument<Number>("dailyAllowanceSeconds")?.toLong()
+                            val numerator = call.argument<Number>("rewardNumerator")?.toLong()
+                            val denominator = call.argument<Number>("rewardDenominator")?.toLong()
+                            if (allowance != null || numerator != null || denominator != null) {
+                                val current = EarnTimeStore.settings(this)
+                                EarnTimeStore.saveSettings(this, EarnTimeSettings(
+                                    allowance ?: current.dailyAllowanceSeconds,
+                                    numerator ?: current.rewardNumerator,
+                                    denominator ?: current.rewardDenominator,
+                                ))
+                            }
+                            result.success(EarnTimeStore.snapshot(this))
+                        }
+                        "startMonitor" -> {
+                            check(NativeAccess.usage(this)) { "Activa el acceso al uso de aplicaciones." }
+                            val intent = Intent(this, EarnTimeMonitorService::class.java)
+                            if (Build.VERSION.SDK_INT >= 26) startForegroundService(intent) else startService(intent)
+                            result.success(true)
+                        }
+                        "stopMonitor" -> {
+                            stopService(Intent(this, EarnTimeMonitorService::class.java))
+                            result.success(true)
+                        }
+                        "status" -> result.success(
+                            EarnTimeStore.snapshot(this) + mapOf("monitorRunning" to EarnTimeMonitorService.running,
+                                "usagePermission" to NativeAccess.usage(this))
+                        )
+                        else -> result.notImplemented()
+                    }
+                } catch (error: Exception) {
+                    result.error("earn_time_error", error.message ?: "No se pudo actualizar Earn Your Time.", null)
+                }
+            }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "focusfeed/permissions")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
