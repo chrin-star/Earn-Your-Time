@@ -108,12 +108,16 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
           children: [
-            Text('Calendario de productividad',
-                style: Theme.of(context).textTheme.headlineSmall),
+            Text('Tu progreso', style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+            )),
             const SizedBox(height: 4),
-            Text('Cada día se valora automáticamente según tu meta productiva.',
-                style: Theme.of(context).textTheme.bodyMedium),
-            const SizedBox(height: 12),
+            Text('Calendario de productividad · cada día cuenta.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                )),
+            const SizedBox(height: 14),
             _weeklyOverview(context, data),
             const SizedBox(height: 16),
             Card(
