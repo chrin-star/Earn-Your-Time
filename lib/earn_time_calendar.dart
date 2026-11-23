@@ -113,7 +113,7 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
               letterSpacing: -0.5,
             )),
             const SizedBox(height: 4),
-            Text('Calendario de productividad · cada día cuenta.',
+            Text('Calendario de productividad',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 )),
