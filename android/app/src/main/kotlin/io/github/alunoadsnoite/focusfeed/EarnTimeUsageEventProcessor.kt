@@ -28,6 +28,7 @@ internal class EarnTimeUsageEventProcessor(
     private val activity = ForegroundActivityTracker()
     private val accountant = EarnTimeTracker(productivePackages, distractingPackages)
     private var lastEventWallTime = Long.MIN_VALUE
+    private val recentEventKeys = LinkedHashSet<String>()
     private var lastAppliedPackage: String? = null
     private var lastMonotonicTime = Long.MIN_VALUE
 
@@ -55,16 +56,26 @@ internal class EarnTimeUsageEventProcessor(
         val ordered = events.sortedBy { it.wallTimeMillis }
         for (event in ordered) {
             require(event.packageName.isNotBlank())
-            if (event.wallTimeMillis <= lastEventWallTime) continue
+            val eventKey = "${event.type}|${event.packageName}|${event.activityName.orEmpty()}|${event.wallTimeMillis}"
+            if (event.wallTimeMillis < lastEventWallTime || !recentEventKeys.add(eventKey)) continue
+            if (recentEventKeys.size > 256) {
+                val oldest = recentEventKeys.first()
+                recentEventKeys.remove(oldest)
+            }
 
             // Translate relative to this batch, not with a permanently stored
             // wall-clock offset, so ordinary manual/NTP clock corrections do
             // not directly become elapsed-time jumps.
             val age = (nowWallTimeMillis - event.wallTimeMillis).coerceAtLeast(0L)
             val eventElapsed = (nowElapsedRealtimeMillis - age).coerceAtLeast(0L)
-            val safeElapsed = maxOf(eventElapsed, lastMonotonicTime.takeIf {
-                it != Long.MIN_VALUE
-            } ?: eventElapsed)
+            // Events older than the last completed checkpoint arrived too late
+            // to be reconstructed safely. Ignore them rather than moving the
+            // accountant backwards or inventing time at the checkpoint.
+            if (lastMonotonicTime != Long.MIN_VALUE && eventElapsed < lastMonotonicTime) {
+                lastEventWallTime = maxOf(lastEventWallTime, event.wallTimeMillis)
+                continue
+            }
+            val safeElapsed = eventElapsed
 
             when (event.type) {
                 EventType.RESUMED -> activity.resume(
@@ -80,8 +91,7 @@ internal class EarnTimeUsageEventProcessor(
                 total += accountant.onForegroundChanged(newPackage, safeElapsed)
                 lastAppliedPackage = newPackage
             }
-            lastEventWallTime = event.wallTimeMillis
-            lastMonotonicTime = safeElapsed
+            lastEventWallTime = maxOf(lastEventWallTime, event.wallTimeMillis)
         }
 
         val foreground = activity.packageName
