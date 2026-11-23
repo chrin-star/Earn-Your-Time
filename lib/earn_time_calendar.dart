@@ -94,7 +94,8 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
         final firstWeekday = DateTime(_month.year, _month.month, 1).weekday - 1;
         final daysInMonth = DateTime(_month.year, _month.month + 1, 0).day;
         final cellCount = ((firstWeekday + daysInMonth + 6) ~/ 7) * 7;
-        final monthName = _month.month.toString().padLeft(2, '0');
+        const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+        final monthName = monthNames[_month.month - 1];
         final goalMinutes = ((data['productivityGoalSeconds'] as num?)?.toInt() ?? 3600) ~/ 60;
         final today = DateTime.now();
         final isFuture = DateTime(_selected.year, _selected.month, _selected.day)
