@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:focus_feed/main.dart';
 import 'package:focus_feed/permissions.dart';
@@ -9,6 +10,33 @@ import 'fake_session_platform.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  const earnTimeChannel = MethodChannel('focusfeed/earn_time');
+  setUp(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(earnTimeChannel, (call) async {
+          switch (call.method) {
+            case 'status':
+            case 'configure':
+              return {
+                'productiveSeconds': 0,
+                'earnedSeconds': 0,
+                'distractingSeconds': 0,
+                'remainingSeconds': 1800,
+                'dailyAllowanceSeconds': 1800,
+                'rewardNumerator': 1,
+                'rewardDenominator': 1,
+                'productivePackages': <String>[],
+                'distractingPackages': <String>[],
+                'monitorRunning': false,
+                'usagePermission': true,
+              };
+            case 'startMonitor':
+            case 'stopMonitor':
+              return true;
+            default:
+              return null;
+          }
+        });
   setUp(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
@@ -16,10 +44,12 @@ void main() {
           (_) async => {'supported': true, 'usage': true, 'overlay': true},
         );
   });
-  tearDown(
-    () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(FocusPermissions.channel, null),
-  );
+  tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(FocusPermissions.channel, null);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(earnTimeChannel, null);
+  });
   testWidgets('zero reward disables release while installed apps are shown', (
     tester,
   ) async {
@@ -27,6 +57,7 @@ void main() {
     final c = SessionController(platform: native, poll: false);
     await tester.pumpWidget(FocusFeedApp(controller: c));
     await tester.pumpAndSettle();
+    await _openFocus(tester);
     await tester.scrollUntilVisible(
       find.text('Desbloquear apps durante 0 min'),
       200,
@@ -66,6 +97,7 @@ void main() {
       final c = SessionController(platform: native, poll: false);
       await tester.pumpWidget(FocusFeedApp(controller: c));
       await tester.pumpAndSettle();
+      await _openFocus(tester);
       expect(find.text('15:00'), findsOneWidget);
       expect(find.text('Reanudar enfoque'), findsOneWidget);
       expect(find.text('Celular reiniciado.'), findsOneWidget);
@@ -84,6 +116,7 @@ void main() {
     final c = SessionController(platform: native, poll: false);
     await tester.pumpWidget(FocusFeedApp(controller: c));
     await tester.pumpAndSettle();
+    await _openFocus(tester);
     await tester.scrollUntilVisible(find.text('Recompensa: 00:12'), 200);
     expect(find.text('Recompensa: 00:12'), findsOneWidget);
     native.progress['session']['phase'] = 'locked';
@@ -177,6 +210,7 @@ void main() {
     final c = SessionController(platform: native, poll: false);
     await tester.pumpWidget(FocusFeedApp(controller: c));
     await tester.pumpAndSettle();
+    await _openFocus(tester);
     await tester.scrollUntilVisible(
       find.text('Seleccionar apps en iOS'),
       200,
@@ -208,4 +242,10 @@ class _FakeSettingsPlatform implements SettingsPlatform {
 
   @override
   Future<void> saveTheme(String value) async => stored = value;
+}
+
+
+Future<void> _openFocus(WidgetTester tester) async {
+  await tester.tap(find.text('Foco'));
+  await tester.pumpAndSettle();
 }
