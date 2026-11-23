@@ -443,7 +443,7 @@ class _EarnTimeViewState extends State<EarnTimeView> {
         const SizedBox(height: 20),
         Text('Clasifica tus aplicaciones', style: theme.textTheme.titleLarge),
         const SizedBox(height: 4),
-        const Text('Productivas generan saldo. Distractoras consumen saldo. Las ignoradas no cuentan.'),
+        const Text('Productivas generan saldo. Distractoras consumen saldo. Las ignoradas no cuentan. Para cambiar categorías, primero detén el seguimiento.'),
         const SizedBox(height: 10),
         TextField(
           controller: _search,
@@ -480,7 +480,7 @@ class _EarnTimeViewState extends State<EarnTimeView> {
             trailing: PopupMenuButton<EarnAppCategory>(
               tooltip: 'Cambiar categoría',
               initialValue: category,
-              onSelected: c.busy ? null : (value) => _setCategory(app.package, value),
+              onSelected: (c.busy || c.monitorRunning) ? null : (value) => _setCategory(app.package, value),
               itemBuilder: (_) => const [
                 PopupMenuItem(value: EarnAppCategory.ignored, child: Text('Ignorar')),
                 PopupMenuItem(value: EarnAppCategory.productive, child: Text('Productiva')),
