@@ -143,16 +143,19 @@ class EarnTimeMonitorService : Service() {
     override fun onDestroy() {
         destroyed = true
         running = false
-        worker.removeCallbacksAndMessages(null)
-        processor?.let {
-            try {
-                val nowWall = System.currentTimeMillis()
-                val nowElapsed = android.os.SystemClock.elapsedRealtime()
-                EarnTimeStore.record(this, it.process(emptyList(), nowWall, nowElapsed, false))
-            } catch (_: Exception) { }
+        worker.removeCallbacks(poll)
+        worker.post {
+            processor?.let {
+                try {
+                    val nowWall = System.currentTimeMillis()
+                    val nowElapsed = android.os.SystemClock.elapsedRealtime()
+                    EarnTimeStore.record(this@EarnTimeMonitorService,
+                        it.process(emptyList(), nowWall, nowElapsed, false))
+                } catch (_: Exception) { }
+            }
+            try { EarnTimeStore.flush(this@EarnTimeMonitorService) } catch (_: Exception) { }
+            workerThread.quitSafely()
         }
-        EarnTimeStore.flush(this)
-        workerThread.quitSafely()
         stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
     }
