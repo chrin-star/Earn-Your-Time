@@ -54,6 +54,10 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
     return {};
   }
 
+  bool _hasActivity(Map<String, dynamic> record) =>
+      ((record['productiveSeconds'] as num?)?.toInt() ?? 0) > 0 ||
+      ((record['distractingSeconds'] as num?)?.toInt() ?? 0) > 0;
+
   double _progress(Map<String, dynamic> record) {
     if (record.isEmpty) return 0;
     final goal = (record['goalSeconds'] as num?)?.toDouble() ?? 3600;
@@ -63,7 +67,7 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
   }
 
   Color _dayColor(BuildContext context, Map<String, dynamic> record) {
-    if (record.isEmpty) return Theme.of(context).colorScheme.surfaceContainerHighest;
+    if (record.isEmpty || !_hasActivity(record)) return Theme.of(context).colorScheme.surfaceContainerHighest;
     final progress = _progress(record);
     if (progress >= 0.8) return Colors.green.shade600;
     if (progress >= 0.5) return Colors.lightGreen.shade700;
@@ -72,12 +76,12 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
   }
 
   String _rating(Map<String, dynamic> record) {
-    if (record.isEmpty) return 'Sin datos';
+    if (record.isEmpty || !_hasActivity(record)) return 'Sin actividad';
     final progress = _progress(record);
     if (progress >= 0.8) return 'Excelente';
     if (progress >= 0.5) return 'Buen día';
     if (progress >= 0.25) return 'En progreso';
-    return 'Día tranquilo';
+    return 'Por debajo de la meta';
   }
 
   @override
@@ -200,7 +204,7 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
                                           ? Colors.white
                                           : Theme.of(context).colorScheme.onSurface,
                                     )),
-                                if (record.isNotEmpty)
+                                if (_hasActivity(record))
                                   Container(
                                     width: 4,
                                     height: 4,
@@ -239,7 +243,7 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: selected.isEmpty || isFuture
+                child: selected.isEmpty || !_hasActivity(selected) || isFuture
                     ? Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
