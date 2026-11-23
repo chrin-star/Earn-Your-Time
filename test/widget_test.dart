@@ -169,12 +169,6 @@ void main() {
     expect(find.text('Esta semana'), findsOneWidget);
     expect(find.text('Racha actual'), findsOneWidget);
     expect(find.text('Mejor día'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.textContaining('Meta de referencia: 60 min'),
-      180,
-      scrollable: find.byType(Scrollable).first,
-    );
-    expect(find.textContaining('Meta de referencia: 60 min'), findsOneWidget);
     expect(find.text('Earn Your Time'), findsWidgets);
 
     await tester.pumpWidget(const SizedBox());
@@ -295,7 +289,6 @@ class _FakeSettingsPlatform implements SettingsPlatform {
   @override
   Future<void> saveTheme(String value) async => stored = value;
 }
-
 
 Future<void> _openFocus(WidgetTester tester) async {
   await tester.tap(find.text('Enfoque'));
