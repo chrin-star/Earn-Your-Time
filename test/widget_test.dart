@@ -34,6 +34,7 @@ void main() {
                 'distractingPackages': <String>[],
                 'monitorRunning': false,
                 'usagePermission': true,
+                'overlayPermission': true,
               };
             case 'startMonitor':
             case 'stopMonitor':
