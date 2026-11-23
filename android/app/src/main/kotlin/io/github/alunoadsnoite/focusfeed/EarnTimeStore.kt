@@ -11,15 +11,21 @@ import java.util.Locale
 internal object EarnTimeStore {
     private const val PREFS = "earn_time_data"
     private const val KEY_DAY = "day"
+    private const val KEY_HISTORY = "daily_history"
     private const val KEY_PRODUCTIVE = "productive_packages"
     private const val KEY_DISTRACTING = "distracting_packages"
     private const val KEY_ALLOWANCE = "daily_allowance_seconds"
     private const val KEY_NUMERATOR = "reward_numerator"
     private const val KEY_DENOMINATOR = "reward_denominator"
+    private const val HISTORY_LIMIT = 730
+    private const val PRODUCTIVITY_GOAL_SECONDS = 60 * 60L
     @Volatile private var cachedDay: EarnTimeDay? = null
 
     private fun prefs(context: Context) =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+    private fun todayKey(): String =
+        SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(Date())
 
     fun configure(context: Context, productive: Set<String>, distracting: Set<String>) {
         require(productive.none { it.isBlank() } && distracting.none { it.isBlank() })
@@ -56,20 +62,60 @@ internal object EarnTimeStore {
     }
 
     @Synchronized
+    private fun currentDay(context: Context, today: String): EarnTimeDay {
+        val p = prefs(context)
+        val day = cachedDay ?: p.getString(KEY_DAY, null)?.let(::decodeDay) ?: EarnTimeDay(today)
+        if (day.dayKey != today) {
+            archive(context, day, settings(context))
+            day.rollTo(today)
+            p.edit().putString(KEY_DAY, encodeDay(day)).commit()
+        }
+        cachedDay = day
+        return day
+    }
+
+    @Synchronized
+    private fun archive(context: Context, day: EarnTimeDay, settings: EarnTimeSettings) {
+        val p = prefs(context)
+        val history = try {
+            JSONArray(p.getString(KEY_HISTORY, "[]"))
+        } catch (_: Exception) {
+            JSONArray()
+        }
+        // Replace an existing record for this date rather than creating duplicates.
+        val rebuilt = JSONArray()
+        for (i in 0 until history.length()) {
+            val item = history.optJSONObject(i) ?: continue
+            if (item.optString("dayKey") != day.dayKey) rebuilt.put(item)
+        }
+        rebuilt.put(JSONObject()
+            .put("dayKey", day.dayKey)
+            .put("productiveSeconds", day.productiveSeconds)
+            .put("earnedSeconds", day.earnedSeconds)
+            .put("distractingSeconds", day.spentSeconds)
+            .put("dailyAllowanceSeconds", settings.dailyAllowanceSeconds)
+            .put("goalSeconds", PRODUCTIVITY_GOAL_SECONDS))
+        val trimmed = JSONArray()
+        val start = (rebuilt.length() - HISTORY_LIMIT).coerceAtLeast(0)
+        for (i in start until rebuilt.length()) trimmed.put(rebuilt.getJSONObject(i))
+        check(p.edit().putString(KEY_HISTORY, trimmed.toString()).commit()) {
+            "No se pudo guardar el historial diario."
+        }
+    }
+
+    @Synchronized
     fun record(context: Context, delta: EarnTimeUsageDelta) {
         if (delta == EarnTimeUsageDelta()) return
-        val p = prefs(context)
-        val today = SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(Date())
-        val day = cachedDay ?: p.getString(KEY_DAY, null)?.let(::decodeDay) ?: EarnTimeDay(today)
+        val day = currentDay(context, todayKey())
         val settings = settings(context)
-        day.recordProductive(delta.productiveSeconds, today, settings)
-        day.recordDistracting(delta.distractingSeconds, today, settings)
+        day.recordProductive(delta.productiveSeconds, day.dayKey, settings)
+        day.recordDistracting(delta.distractingSeconds, day.dayKey, settings)
         cachedDay = day
     }
 
     @Synchronized
     fun flush(context: Context) {
-        val day = cachedDay ?: return
+        val day = currentDay(context, todayKey())
         check(prefs(context).edit().putString(KEY_DAY, encodeDay(day)).commit()) {
             "No se pudo guardar el progreso de Earn Your Time."
         }
@@ -78,12 +124,27 @@ internal object EarnTimeStore {
     @Synchronized
     fun snapshot(context: Context): Map<String, Any> {
         val p = prefs(context)
-        val today = SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(Date())
-        val day = cachedDay ?: p.getString(KEY_DAY, null)?.let(::decodeDay) ?: EarnTimeDay(today)
+        val day = currentDay(context, todayKey())
         val settings = settings(context)
-        day.rollTo(today)
-        cachedDay = day
+        val history = try {
+            JSONArray(p.getString(KEY_HISTORY, "[]"))
+        } catch (_: Exception) {
+            JSONArray()
+        }
+        val records = ArrayList<Map<String, Any>>()
+        for (i in 0 until history.length()) {
+            val item = history.optJSONObject(i) ?: continue
+            records += mapOf(
+                "dayKey" to item.optString("dayKey"),
+                "productiveSeconds" to item.optLong("productiveSeconds"),
+                "earnedSeconds" to item.optLong("earnedSeconds"),
+                "distractingSeconds" to item.optLong("distractingSeconds"),
+                "dailyAllowanceSeconds" to item.optLong("dailyAllowanceSeconds"),
+                "goalSeconds" to item.optLong("goalSeconds", PRODUCTIVITY_GOAL_SECONDS),
+            )
+        }
         return mapOf(
+            "dayKey" to day.dayKey,
             "productiveSeconds" to day.productiveSeconds,
             "earnedSeconds" to day.earnedSeconds,
             "distractingSeconds" to day.spentSeconds,
@@ -91,6 +152,8 @@ internal object EarnTimeStore {
             "dailyAllowanceSeconds" to settings.dailyAllowanceSeconds,
             "rewardNumerator" to settings.rewardNumerator,
             "rewardDenominator" to settings.rewardDenominator,
+            "productivityGoalSeconds" to PRODUCTIVITY_GOAL_SECONDS,
+            "history" to records,
             "productivePackages" to categories(context).first.toList(),
             "distractingPackages" to categories(context).second.toList(),
         )
