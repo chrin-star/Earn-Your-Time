@@ -5,6 +5,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'focus_strings.dart';
 import 'earn_time_view.dart';
+import 'earn_time_calendar.dart';
 
 import 'history_view.dart';
 import 'permissions.dart';
@@ -218,7 +219,7 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
                   Expanded(
                     child: TabBarView(
                       children: [
-                        EarnTimeStatsView(controller: _earnTime),
+                        EarnTimeCalendarView(controller: _earnTime),
                         HistoryView(state: s, now: c.now),
                       ],
                     ),
