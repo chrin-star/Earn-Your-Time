@@ -147,6 +147,28 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     c.dispose();
   });
+  testWidgets('apps have a dedicated searchable tab and daily stats are separate', (
+    tester,
+  ) async {
+    final native = FakeSessionPlatform();
+    final controller = SessionController(platform: native, poll: false);
+    await tester.pumpWidget(FocusFeedApp(controller: controller));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Apps'));
+    await tester.pumpAndSettle();
+    expect(find.text('Tus aplicaciones'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Buscar aplicación'), findsOneWidget);
+
+    await tester.tap(find.text('Estadísticas'));
+    await tester.pumpAndSettle();
+    expect(find.text('Tu actividad de hoy'), findsOneWidget);
+    expect(find.text('Earn Your Time'), findsWidgets);
+
+    await tester.pumpWidget(const SizedBox());
+    controller.dispose();
+  });
+
   testWidgets('settings tab selects a theme and shows developer contact', (
     tester,
   ) async {
