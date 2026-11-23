@@ -63,6 +63,22 @@ class EarnTimeUsageEventProcessorTest {
         assertEquals(null, p.foregroundPackage())
     }
 
+    @Test fun processesDistinctEventsThatShareTheSameMillisecond() {
+        val p = EarnTimeUsageEventProcessor(setOf("canva"), setOf("youtube"))
+        val delta = p.process(
+            listOf(
+                event(EarnTimeUsageEventProcessor.EventType.RESUMED, "canva", 1_000),
+                event(EarnTimeUsageEventProcessor.EventType.PAUSED, "canva", 1_000),
+                event(EarnTimeUsageEventProcessor.EventType.RESUMED, "youtube", 1_000),
+            ),
+            nowWallTimeMillis = 3_000,
+            nowElapsedRealtimeMillis = 5_000,
+            deviceUsable = true,
+        )
+        assertEquals(EarnTimeUsageDelta(distractingSeconds = 2), delta)
+        assertEquals("youtube", p.foregroundPackage())
+    }
+
     @Test fun rejectsMonotonicClockMovingBackwardsBetweenBatches() {
         val p = EarnTimeUsageEventProcessor(emptySet(), emptySet())
         p.process(emptyList(), 10_000, 20_000, true)
