@@ -98,7 +98,17 @@ class EarnTimeMonitorService : Service() {
                 )
                 main.post {
                     if (!destroyed) {
-                        if (shouldBlock) overlay.showEarnTime() else overlay.hide()
+                        if (!android.provider.Settings.canDrawOverlays(this@EarnTimeMonitorService)) {
+                            overlay.hide()
+                        } else if (shouldBlock) {
+                            try {
+                                overlay.showEarnTime()
+                            } catch (_: Exception) {
+                                overlay.hide()
+                            }
+                        } else {
+                            overlay.hide()
+                        }
                     }
                 }
                 if (nowElapsed - lastSaveElapsed >= 15_000L) {
