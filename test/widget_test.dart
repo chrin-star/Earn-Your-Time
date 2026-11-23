@@ -180,6 +180,8 @@ void main() {
     await tester.tap(find.text('Ajustes'));
     await tester.pumpAndSettle();
     expect(find.text('Valdenor Tavares'), findsOneWidget);
+    expect(find.text('Importante en Xiaomi y Redmi'), findsOneWidget);
+    expect(find.textContaining('Sin restricciones'), findsOneWidget);
     expect(find.text('valdenor.sa@proton.me'), findsOneWidget);
     await tester.tap(find.text('Oscuro'));
     await tester.pumpAndSettle();
