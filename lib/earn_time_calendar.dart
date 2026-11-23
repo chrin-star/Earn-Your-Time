@@ -72,7 +72,7 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
     if (progress >= 0.8) return Colors.green.shade600;
     if (progress >= 0.5) return Colors.lightGreen.shade700;
     if (progress >= 0.25) return Colors.orange.shade700;
-    return Theme.of(context).colorScheme.error.withOpacity(0.72);
+    return Theme.of(context).colorScheme.error.withValues(alpha: 0.72);
   }
 
   String _rating(Map<String, dynamic> record) {
@@ -185,7 +185,7 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
                             decoration: BoxDecoration(
                               color: future
                                   ? Theme.of(context).colorScheme.surface
-                                  : _dayColor(context, record).withOpacity(record.isEmpty ? 0.35 : 1),
+                                  : _dayColor(context, record).withValues(alpha: record.isEmpty ? 0.35 : 1),
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
                                 color: isSelected
@@ -229,7 +229,7 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
                         _legend(context, Colors.green.shade600, '80–100%'),
                         _legend(context, Colors.lightGreen.shade700, '50–79%'),
                         _legend(context, Colors.orange.shade700, '25–49%'),
-                        _legend(context, Theme.of(context).colorScheme.error.withOpacity(0.72), '0–24%'),
+                        _legend(context, Theme.of(context).colorScheme.error.withValues(alpha: 0.72), '0–24%'),
                         _legend(context, Theme.of(context).colorScheme.surfaceContainerHighest, 'Sin datos'),
                       ],
                     ),
