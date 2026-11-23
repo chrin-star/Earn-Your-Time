@@ -16,6 +16,25 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     private val main = Handler(Looper.getMainLooper())
     private var notificationResult: MethodChannel.Result? = null
+    private fun awaitMonitorState(
+        expectedRunning: Boolean,
+        result: MethodChannel.Result,
+        attempts: Int = 0,
+    ) {
+        if (EarnTimeMonitorService.running == expectedRunning) {
+            result.success(true)
+        } else if (attempts >= 30) {
+            val message = if (expectedRunning) {
+                "Android no confirmó el inicio del seguimiento. Comprueba el permiso de acceso al uso y vuelve a intentarlo."
+            } else {
+                "Android todavía no confirmó que el seguimiento se haya detenido. Actualiza el estado en unos segundos."
+            }
+            result.error("monitor_state_timeout", message, null)
+        } else {
+            main.postDelayed({ awaitMonitorState(expectedRunning, result, attempts + 1) }, 100L)
+        }
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "focusfeed/earn_time")
@@ -43,11 +62,13 @@ class MainActivity : FlutterActivity() {
                             check(NativeAccess.usage(this)) { "Activa el acceso al uso de aplicaciones." }
                             val intent = Intent(this, EarnTimeMonitorService::class.java)
                             if (Build.VERSION.SDK_INT >= 26) startForegroundService(intent) else startService(intent)
-                            result.success(true)
+                            awaitMonitorState(true, result)
+                            return@setMethodCallHandler
                         }
                         "stopMonitor" -> {
                             stopService(Intent(this, EarnTimeMonitorService::class.java))
-                            result.success(true)
+                            awaitMonitorState(false, result)
+                            return@setMethodCallHandler
                         }
                         "status" -> result.success(
                             EarnTimeStore.snapshot(this) + mapOf("monitorRunning" to EarnTimeMonitorService.running,
