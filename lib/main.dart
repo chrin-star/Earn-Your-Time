@@ -189,9 +189,10 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
       appBar: AppBar(
         title: Text(
           [
-            'Earn Your Time',
+            'Inicio',
+            'Aplicaciones',
             strings.text('Foco'),
-            strings.text('Histórico'),
+            'Estadísticas',
             strings.text('Ajustes'),
           ][_index],
         ),
@@ -199,8 +200,32 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
       body: SafeArea(
         child: switch (_index) {
           0 => EarnTimeView(apps: c.apps, controller: _earnTime),
-          1 => _focusTab(context, c, s),
-          2 => HistoryView(state: s, now: c.now),
+          1 => EarnTimeApplicationsView(apps: c.apps, controller: _earnTime),
+          2 => _focusTab(context, c, s),
+          3 => DefaultTabController(
+              length: 2,
+              child: Column(
+                children: [
+                  Material(
+                    color: Theme.of(context).colorScheme.surface,
+                    child: TabBar(
+                      tabs: [
+                        Tab(text: 'Earn Your Time'),
+                        Tab(text: strings.text('Foco')),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: TabBarView(
+                      children: [
+                        EarnTimeStatsView(controller: _earnTime),
+                        HistoryView(state: s, now: c.now),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           _ => SettingsView(controller: widget.settings),
         },
       ),
@@ -209,19 +234,24 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
         onDestinationSelected: (value) => setState(() => _index = value),
         destinations: [
           const NavigationDestination(
-            icon: Icon(Icons.hourglass_bottom_outlined),
-            selectedIcon: Icon(Icons.hourglass_bottom),
-            label: 'Earn Time',
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Inicio',
+          ),
+          const NavigationDestination(
+            icon: Icon(Icons.apps_outlined),
+            selectedIcon: Icon(Icons.apps),
+            label: 'Apps',
           ),
           NavigationDestination(
             icon: const Icon(Icons.timer_outlined),
             selectedIcon: const Icon(Icons.timer),
             label: strings.text('Foco'),
           ),
-          NavigationDestination(
-            icon: const Icon(Icons.insights_outlined),
-            selectedIcon: const Icon(Icons.insights),
-            label: strings.text('Histórico'),
+          const NavigationDestination(
+            icon: Icon(Icons.insights_outlined),
+            selectedIcon: Icon(Icons.insights),
+            label: 'Estadísticas',
           ),
           NavigationDestination(
             icon: const Icon(Icons.settings_outlined),
