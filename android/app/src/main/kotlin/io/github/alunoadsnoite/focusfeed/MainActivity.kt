@@ -60,6 +60,9 @@ class MainActivity : FlutterActivity() {
                         }
                         "startMonitor" -> {
                             check(NativeAccess.usage(this)) { "Activa el acceso al uso de aplicaciones." }
+                            check(android.provider.Settings.canDrawOverlays(this)) {
+                                "Activa el permiso «Mostrar sobre otras aplicaciones» para que Earn Your Time pueda bloquear las apps distractoras cuando tu saldo llegue a cero."
+                            }
                             val intent = Intent(this, EarnTimeMonitorService::class.java)
                             if (Build.VERSION.SDK_INT >= 26) startForegroundService(intent) else startService(intent)
                             awaitMonitorState(true, result)
@@ -72,7 +75,8 @@ class MainActivity : FlutterActivity() {
                         }
                         "status" -> result.success(
                             EarnTimeStore.snapshot(this) + mapOf("monitorRunning" to EarnTimeMonitorService.running,
-                                "usagePermission" to NativeAccess.usage(this))
+                                "usagePermission" to NativeAccess.usage(this),
+                                "overlayPermission" to Settings.canDrawOverlays(this))
                         )
                         else -> result.notImplemented()
                     }
