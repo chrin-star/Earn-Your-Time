@@ -335,33 +335,100 @@ class _EarnTimeViewState extends State<EarnTimeView> with WidgetsBindingObserver
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
       children: [
-        Text('Tu tiempo, tus reglas', style: theme.textTheme.headlineSmall),
-        const SizedBox(height: 4),
-        Text('Usa aplicaciones productivas para ganar tiempo y gástalo en las distractoras.'),
-        const SizedBox(height: 16),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Saldo disponible', style: theme.textTheme.titleMedium),
-                const SizedBox(height: 4),
-                Text(_duration(remaining), style: theme.textTheme.displaySmall),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 16,
-                  runSpacing: 8,
-                  children: [
-                    _metric('Productivo', productiveSeconds),
-                    _metric('Ganado', earnedSeconds),
-                    _metric('Gastado', spentSeconds),
-                  ],
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 10, 4, 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Tu tiempo, tus reglas', style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+              )),
+              const SizedBox(height: 5),
+              Text(
+                'Convierte tus buenos hábitos en tiempo para disfrutar.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
-                const SizedBox(height: 8),
-                Text('El saldo base y los contadores se reinician cada día.'),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                theme.colorScheme.primary,
+                Color.lerp(theme.colorScheme.primary, const Color(0xFF123D3A), 0.38)!,
               ],
             ),
+            borderRadius: BorderRadius.circular(26),
+            boxShadow: [
+              BoxShadow(
+                color: theme.colorScheme.primary.withValues(alpha: 0.18),
+                blurRadius: 22,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.account_balance_wallet_rounded,
+                      color: Colors.white.withValues(alpha: 0.9), size: 19),
+                  const SizedBox(width: 8),
+                  Text('Saldo disponible',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.88),
+                        fontWeight: FontWeight.w600,
+                      )),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    child: Text('HOY',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1,
+                        )),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 9),
+              Text(
+                _duration(remaining),
+                style: theme.textTheme.displaySmall?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -1.2,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Container(height: 1, color: Colors.white.withValues(alpha: 0.2)),
+              const SizedBox(height: 15),
+              Row(
+                children: [
+                  Expanded(child: _heroMetric('Productivo', productiveSeconds)),
+                  Expanded(child: _heroMetric('Ganado', earnedSeconds)),
+                  Expanded(child: _heroMetric('Gastado', spentSeconds)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text('Tu saldo se renueva cada día.',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.75),
+                  )),
+            ],
           ),
         ),
         Card(
@@ -458,11 +525,21 @@ class _EarnTimeViewState extends State<EarnTimeView> with WidgetsBindingObserver
     );
   }
 
-  Widget _metric(String label, int seconds) => Column(
+  Widget _heroMetric(String label, int seconds) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text(label, style: Theme.of(context).textTheme.labelMedium),
-      Text(_duration(seconds), style: Theme.of(context).textTheme.titleMedium),
+      Text(label,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: Colors.white.withValues(alpha: 0.76),
+          )),
+      const SizedBox(height: 3),
+      Text(_duration(seconds),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+          )),
     ],
   );
 }
