@@ -160,7 +160,7 @@ void main() {
     expect(find.text('Tus aplicaciones'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'Buscar aplicación'), findsOneWidget);
 
-    await tester.tap(find.text('Estadísticas'));
+    await tester.tap(find.text('Estadísticas').last);
     await tester.pumpAndSettle();
     expect(find.text('Tu actividad de hoy'), findsOneWidget);
     expect(find.text('Earn Your Time'), findsWidgets);
