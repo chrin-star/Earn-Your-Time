@@ -130,7 +130,7 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
                         ),
                         Expanded(
                           child: Text(
-                            '${_month.year} · $monthName',
+                            '$monthName ${_month.year}',
                             textAlign: TextAlign.center,
                             style: Theme.of(context).textTheme.titleLarge,
                           ),
@@ -185,7 +185,7 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
                             decoration: BoxDecoration(
                               color: future
                                   ? Theme.of(context).colorScheme.surface
-                                  : _dayColor(context, record).withValues(alpha: record.isEmpty ? 0.35 : 1),
+                                  : _dayColor(context, record).withValues(alpha: _hasActivity(record) ? 1 : 0.35),
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
                                 color: isSelected
