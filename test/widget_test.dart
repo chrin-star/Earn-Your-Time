@@ -75,8 +75,10 @@ void main() {
       200,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.ensureVisible(
+    await tester.scrollUntilVisible(
       find.widgetWithText(CheckboxListTile, 'Outro app'),
+      100,
+      scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(CheckboxListTile, 'Outro app'));
@@ -102,6 +104,11 @@ void main() {
       await tester.pumpAndSettle();
       await _openFocus(tester);
       expect(find.text('15:00'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('Reanudar enfoque'),
+        120,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('Reanudar enfoque'), findsOneWidget);
       expect(find.text('Celular reiniciado.'), findsOneWidget);
       await tester.scrollUntilVisible(find.text('Saldo: 5 min 12 s'), 200);
@@ -241,6 +248,11 @@ void main() {
     await tester.tap(find.text('Enfoque'));
     await tester.pumpAndSettle();
     expect(find.text('15:00'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Reanudar enfoque'),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Reanudar enfoque'), findsOneWidget);
     expect(
       find.text('Enfoque completado. La recompensa se añadió al saldo.'),
