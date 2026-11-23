@@ -182,7 +182,7 @@ class EarnTimeView extends StatefulWidget {
   State<EarnTimeView> createState() => _EarnTimeViewState();
 }
 
-class _EarnTimeViewState extends State<EarnTimeView> {
+class _EarnTimeViewState extends State<EarnTimeView> with WidgetsBindingObserver {
   final _search = TextEditingController();
   final _allowanceInput = TextEditingController();
   final _conversionInput = TextEditingController();
@@ -197,8 +197,16 @@ class _EarnTimeViewState extends State<EarnTimeView> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     widget.controller.addListener(_changed);
     _load();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      widget.controller.refresh();
+    }
   }
 
   void _changed() {
@@ -232,6 +240,7 @@ class _EarnTimeViewState extends State<EarnTimeView> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     widget.controller.removeListener(_changed);
     _search.dispose();
     _allowanceInput.dispose();
