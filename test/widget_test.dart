@@ -182,7 +182,7 @@ void main() {
     // Select the theme while its control is visible near the top of settings.
     await tester.ensureVisible(find.byKey(const Key('themeMode')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Oscuro'));
+    await tester.tap(find.byKey(const Key('themeMode')));
     await tester.pumpAndSettle();
     expect(settings.mode, AppThemeMode.dark);
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
