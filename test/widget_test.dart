@@ -23,6 +23,7 @@ void main() {
             case 'status':
             case 'configure':
               return {
+                'dayKey': DateTime.now().toIso8601String().substring(0, 10),
                 'productiveSeconds': 0,
                 'earnedSeconds': 0,
                 'distractingSeconds': 0,
@@ -30,6 +31,8 @@ void main() {
                 'dailyAllowanceSeconds': 1800,
                 'rewardNumerator': 1,
                 'rewardDenominator': 1,
+                'productivityGoalSeconds': 3600,
+                'history': <Map<String, dynamic>>[],
                 'productivePackages': <String>[],
                 'distractingPackages': <String>[],
                 'monitorRunning': false,
@@ -162,7 +165,8 @@ void main() {
 
     await tester.tap(find.text('Estadísticas').last);
     await tester.pumpAndSettle();
-    expect(find.text('Tu actividad de hoy'), findsOneWidget);
+    expect(find.text('Calendario de productividad'), findsOneWidget);
+    expect(find.textContaining('Meta de referencia: 60 min'), findsOneWidget);
     expect(find.text('Earn Your Time'), findsWidgets);
 
     await tester.pumpWidget(const SizedBox());
