@@ -429,7 +429,7 @@ class _EarnTimeViewState extends State<EarnTimeView> with WidgetsBindingObserver
           child: ListTile(
             leading: const Icon(Icons.info_outline),
             title: const Text('Bloqueo automático'),
-            subtitle: const Text('Cuando el saldo llegue a cero, las aplicaciones que marcaste como distractoras mostrarán una pantalla de bloqueo. Necesita el permiso «Mostrar sobre otras aplicaciones».'),
+            subtitle: const Text('Al llegar a cero, las apps distractoras mostrarán una pantalla encima de ellas. Requiere «Mostrar sobre otras aplicaciones». Es una barrera visual, no un bloqueo imposible de evadir en Android.'),
           ),
         ),
         const SizedBox(height: 12),
