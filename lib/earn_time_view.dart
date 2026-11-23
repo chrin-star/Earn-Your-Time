@@ -301,7 +301,7 @@ class _EarnTimeViewState extends State<EarnTimeView> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                Text('El saldo y los contadores se reinician cada día.'),
+                Text('El saldo base y los contadores se reinician cada día.'),
               ],
             ),
           ),
@@ -340,12 +340,22 @@ class _EarnTimeViewState extends State<EarnTimeView> {
           ),
         if (c.busy) const LinearProgressIndicator(),
         const SizedBox(height: 12),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: const Text('Seguimiento en fase de prueba'),
+            subtitle: const Text('Esta versión contabiliza el tiempo de las aplicaciones. El bloqueo automático al llegar a cero todavía no está implementado.'),
+          ),
+        ),
+        const SizedBox(height: 12),
         Text('Configuración diaria', style: theme.textTheme.titleLarge),
+        const SizedBox(height: 4),
+        const Text('Este es el saldo con el que comienzas cada día; el tiempo productivo se suma y el distractor se descuenta.'),
         const SizedBox(height: 8),
         DropdownButtonFormField<int>(
           value: _allowance ~/ 60,
           decoration: const InputDecoration(
-            labelText: 'Límite diario de recompensa',
+            labelText: 'Saldo base diario',
             border: OutlineInputBorder(),
           ),
           items: [5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240]
