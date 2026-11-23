@@ -482,7 +482,7 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
                   ),
                 ),
                 Expanded(
-                  child: _statMetric(context, '$goalMinutesLabel',
+                  child: _statMetric(context, _duration(goal),
                       'Meta diaria'),
                 ),
               ],
@@ -495,8 +495,6 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
       ),
     );
   }
-
-  String get goalMinutesLabel => '${(60).toString()} min';
 
   Widget _statMetric(BuildContext context, String value, String label,
       {String? subtitle}) =>
