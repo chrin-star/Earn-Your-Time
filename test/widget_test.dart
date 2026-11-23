@@ -179,9 +179,19 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Ajustes'));
     await tester.pumpAndSettle();
-    expect(find.text('Valdenor Tavares'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Importante en Xiaomi y Redmi'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Importante en Xiaomi y Redmi'), findsOneWidget);
     expect(find.textContaining('Sin restricciones'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Valdenor Tavares'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Valdenor Tavares'), findsOneWidget);
     expect(find.text('valdenor.sa@proton.me'), findsOneWidget);
     await tester.tap(find.text('Oscuro'));
     await tester.pumpAndSettle();
