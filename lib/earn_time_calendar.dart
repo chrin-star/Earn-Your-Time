@@ -600,7 +600,7 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
                                   width: 34,
                                   height: 34,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Icon(
+                                  errorBuilder: (_, _, _) => Icon(
                                       Icons.apps_rounded, size: 18, color: color),
                                 ),
                               )
