@@ -330,13 +330,31 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
               length: 2,
               child: Column(
                 children: [
-                  Material(
-                    color: Theme.of(context).colorScheme.surface,
-                    child: TabBar(
-                      tabs: [
-                        Tab(text: 'Earn Your Time'),
-                        Tab(text: strings.text('Foco')),
-                      ],
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 8, 18, 10),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.45),
+                        ),
+                      ),
+                      child: TabBar(
+                        dividerColor: Colors.transparent,
+                        indicatorSize: TabBarIndicatorSize.tab,
+                        indicator: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        labelColor: Theme.of(context).colorScheme.onPrimaryContainer,
+                        unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
+                        tabs: const [
+                          Tab(icon: Icon(Icons.calendar_month_rounded, size: 18), text: 'Earn Your Time'),
+                          Tab(icon: Icon(Icons.timer_outlined, size: 18), text: 'Foco'),
+                        ],
+                      ),
                     ),
                   ),
                   Expanded(
