@@ -15,11 +15,11 @@ import 'settings.dart';
 
 ThemeData _buildAppTheme(Brightness brightness) {
   final scheme = ColorScheme.fromSeed(
-    seedColor: const Color(0xFF0F9D8A),
+    seedColor: const Color(0xFF28A9C7),
     brightness: brightness,
     surface: brightness == Brightness.dark
-        ? const Color(0xFF111A1B)
-        : const Color(0xFFF6F9F8),
+        ? const Color(0xFF102126)
+        : const Color(0xFFEAF7FA),
   );
   return ThemeData(
     useMaterial3: true,
@@ -42,9 +42,10 @@ ThemeData _buildAppTheme(Brightness brightness) {
     ),
     cardTheme: CardThemeData(
       color: brightness == Brightness.dark
-          ? const Color(0xFF1A2526)
-          : Colors.white,
-      elevation: 0,
+          ? const Color(0xFF1A3036)
+          : const Color(0xFFF9FEFF),
+      elevation: brightness == Brightness.dark ? 1 : 2,
+      shadowColor: const Color(0xFF4AAFC3).withValues(alpha: 0.16),
       margin: const EdgeInsets.symmetric(vertical: 6),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(22),
@@ -54,8 +55,8 @@ ThemeData _buildAppTheme(Brightness brightness) {
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: brightness == Brightness.dark
-          ? const Color(0xFF202D2E)
-          : const Color(0xFFEEF4F2),
+          ? const Color(0xFF203941)
+          : const Color(0xFFDFF1F5),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide.none,
@@ -72,8 +73,8 @@ ThemeData _buildAppTheme(Brightness brightness) {
     ),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: brightness == Brightness.dark
-          ? const Color(0xFF151F20)
-          : Colors.white,
+          ? const Color(0xFF142A31)
+          : const Color(0xFFF4FCFE),
       indicatorColor: scheme.primaryContainer,
       elevation: 0,
       height: 72,
@@ -327,7 +328,7 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
           1 => EarnTimeApplicationsView(apps: c.apps, controller: _earnTime),
           2 => _focusTab(context, c, s),
           3 => DefaultTabController(
-              length: 2,
+              length: 4,
               child: Column(
                 children: [
                   Padding(
@@ -351,7 +352,9 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
                         labelColor: Theme.of(context).colorScheme.onPrimaryContainer,
                         unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
                         tabs: const [
-                          Tab(icon: Icon(Icons.calendar_month_rounded, size: 18), text: 'Earn Your Time'),
+                          Tab(icon: Icon(Icons.calendar_month_rounded, size: 18), text: 'Calendario'),
+                          Tab(icon: Icon(Icons.emoji_events_outlined, size: 18), text: 'Récords'),
+                          Tab(icon: Icon(Icons.workspace_premium_outlined, size: 18), text: 'Logros'),
                           Tab(icon: Icon(Icons.timer_outlined, size: 18), text: 'Foco'),
                         ],
                       ),
@@ -360,7 +363,9 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
                   Expanded(
                     child: TabBarView(
                       children: [
-                        EarnTimeCalendarView(controller: _earnTime),
+                        EarnTimeCalendarView(controller: _earnTime, section: EarnCalendarSection.calendar),
+                        EarnTimeCalendarView(controller: _earnTime, section: EarnCalendarSection.records),
+                        EarnTimeCalendarView(controller: _earnTime, section: EarnCalendarSection.achievements),
                         HistoryView(state: s, now: c.now),
                       ],
                     ),
@@ -368,7 +373,7 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
                 ],
               ),
             ),
-          _ => SettingsView(controller: widget.settings),
+          _ => SettingsView(controller: widget.settings, notificationsEnabled: s.notificationsEnabled, onConfigureNotifications: c.busy ? null : c.notifications),
         },
       ),
       bottomNavigationBar: NavigationBar(
@@ -675,24 +680,6 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
                 ),
               ),
             ),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.notifications_outlined),
-                title: Text(
-                  s.notificationsEnabled
-                      ? strings.text('Notificações ativadas')
-                      : strings.text('Notificações desativadas'),
-                ),
-                subtitle: Text(
-                  strings.text('Receba avisos ao terminar o foco e a pausa.'),
-                ),
-                trailing: TextButton(
-                  onPressed: c.busy ? null : c.notifications,
-                  child: Text(strings.text('Configurar')),
-                ),
-              ),
-            ),
-            const PermissionsPanel(),
             const SizedBox(height: 24),
             Text(
               strings.text('Apps selecionados para bloqueio'),
