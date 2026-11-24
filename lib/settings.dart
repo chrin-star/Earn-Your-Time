@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'focus_strings.dart';
+import 'permissions.dart';
 
 /// Preferência de tema persistida no armazenamento nativo.
 enum AppThemeMode {
@@ -165,9 +166,11 @@ class SettingsView extends StatelessWidget {
     }
   }
 
-  const SettingsView({super.key, required this.controller});
+  const SettingsView({super.key, required this.controller, this.notificationsEnabled = false, this.onConfigureNotifications});
 
   final SettingsController controller;
+  final bool notificationsEnabled;
+  final VoidCallback? onConfigureNotifications;
 
   @override
   Widget build(BuildContext context) {
@@ -249,6 +252,25 @@ class SettingsView extends StatelessWidget {
               onSelectionChanged: (selection) => controller.setMode(selection.first),
             ),
           ]),
+        ),
+        const SizedBox(height: 12),
+        section(
+          icon: Icons.notifications_active_outlined,
+          title: 'Notificaciones y permisos',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.notifications_outlined),
+                title: Text(notificationsEnabled ? 'Notificaciones activadas' : 'Notificaciones desactivadas'),
+                subtitle: const Text('Avisos al terminar el foco y la pausa.'),
+                trailing: TextButton(onPressed: onConfigureNotifications, child: const Text('Configurar')),
+              ),
+              const Divider(height: 18),
+              const PermissionsPanel(),
+            ],
+          ),
         ),
         const SizedBox(height: 12),
         section(
