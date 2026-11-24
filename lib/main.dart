@@ -8,7 +8,6 @@ import 'earn_time_view.dart';
 import 'earn_time_calendar.dart';
 
 import 'history_view.dart';
-import 'permissions.dart';
 import 'rewards.dart';
 import 'session_controller.dart';
 import 'settings.dart';
