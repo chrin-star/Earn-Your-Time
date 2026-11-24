@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import 'earn_time_view.dart';
@@ -465,7 +467,7 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
                 crossAxisCount: 2,
                 crossAxisSpacing: 9,
                 mainAxisSpacing: 9,
-                childAspectRatio: 1.65,
+                childAspectRatio: 1.42,
               ),
               itemBuilder: (context, index) {
                 final item = achievements[index];
@@ -473,7 +475,7 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
                     ? Theme.of(context).colorScheme.primary
                     : Theme.of(context).colorScheme.onSurfaceVariant;
                 return Container(
-                  padding: const EdgeInsets.all(11),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: item.unlocked
                         ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.55)
@@ -590,7 +592,19 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
                           color: color.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Icon(Icons.apps_rounded, size: 18, color: color),
+                        child: item['icon'] is Uint8List
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Image.memory(
+                                  item['icon'] as Uint8List,
+                                  width: 34,
+                                  height: 34,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Icon(
+                                      Icons.apps_rounded, size: 18, color: color),
+                                ),
+                              )
+                            : Icon(Icons.apps_rounded, size: 18, color: color),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
