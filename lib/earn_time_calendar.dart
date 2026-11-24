@@ -4,10 +4,13 @@ import 'package:flutter/material.dart';
 
 import 'earn_time_view.dart';
 
+enum EarnCalendarSection { calendar, records, achievements }
+
 /// Monthly productivity calendar backed by the daily snapshots stored natively.
 class EarnTimeCalendarView extends StatefulWidget {
-  const EarnTimeCalendarView({super.key, required this.controller});
+  const EarnTimeCalendarView({super.key, required this.controller, this.section = EarnCalendarSection.calendar});
   final EarnTimeController controller;
+  final EarnCalendarSection section;
 
   @override
   State<EarnTimeCalendarView> createState() => _EarnTimeCalendarViewState();
@@ -128,12 +131,12 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
                 Expanded(child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Tu progreso', style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    Text(section == EarnCalendarSection.calendar ? 'Tu progreso' : section == EarnCalendarSection.records ? 'Récords personales' : 'Sistema de logros', style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.5,
                     )),
                     const SizedBox(height: 3),
-                    Text('Calendario de productividad',
+                    Text(section == EarnCalendarSection.calendar ? 'Calendario de productividad' : section == EarnCalendarSection.records ? 'Tus mejores resultados' : 'Insignias que puedes desbloquear',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       )),
@@ -142,16 +145,17 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
               ],
             ),
             const SizedBox(height: 16),
-            _weeklyOverview(context, data),
-            const SizedBox(height: 12),
-            _monthlyOverview(context, data),
-            const SizedBox(height: 12),
-            _personalRecords(context, data),
-            const SizedBox(height: 12),
-            _achievements(context, data),
-            const SizedBox(height: 12),
-            _appUsageOverview(context),
-            const SizedBox(height: 16),
+            if (section == EarnCalendarSection.records) ...[
+              _personalRecords(context, data),
+            ] else if (section == EarnCalendarSection.achievements) ...[
+              _achievements(context, data),
+            ] else ...[
+              _weeklyOverview(context, data),
+              const SizedBox(height: 12),
+              _monthlyOverview(context, data),
+              const SizedBox(height: 12),
+              _appUsageOverview(context),
+              const SizedBox(height: 16),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(14),
@@ -342,6 +346,7 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
                 label: const Text('Actualizar'),
               ),
             ),
+            ],
           ],
         );
       },
