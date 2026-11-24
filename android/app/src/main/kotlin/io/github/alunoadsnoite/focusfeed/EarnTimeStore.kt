@@ -122,6 +122,9 @@ internal object EarnTimeStore {
     }
 
     @Synchronized
+    fun forgetCacheForBackupRestore() { cachedDay = null }
+
+    @Synchronized
     fun snapshot(context: Context): Map<String, Any> {
         val p = prefs(context)
         val day = currentDay(context, todayKey())
