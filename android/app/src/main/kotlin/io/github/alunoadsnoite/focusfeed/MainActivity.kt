@@ -6,6 +6,9 @@ import android.app.usage.UsageStatsManager
 import org.json.JSONArray
 import org.json.JSONObject
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import java.io.ByteArrayOutputStream
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -115,18 +118,38 @@ class MainActivity : FlutterActivity() {
                             val manager = getSystemService(USAGE_STATS_SERVICE) as UsageStatsManager
                             val usage = manager.queryAndAggregateUsageStats(start, end)
                             val items = usage.entries
-                                .filter { it.key in selected && it.value.totalTimeInForeground > 0L }
+                                // El historial solo debe mostrar aplicaciones que el usuario puede abrir.
+                                // Android también devuelve servicios internos del fabricante, que no son apps útiles para este resumen.
+                                .filter {
+                                    it.key in selected &&
+                                        it.value.totalTimeInForeground >= 60_000L &&
+                                        packageManager.getLaunchIntentForPackage(it.key) != null
+                                }
                                 .mapNotNull { (pkg, stats) ->
                                     try {
                                         val appInfo = packageManager.getApplicationInfo(pkg, 0)
+                                        val label = packageManager.getApplicationLabel(appInfo).toString()
+                                        val drawable = packageManager.getApplicationIcon(appInfo)
+                                        val bitmap = Bitmap.createBitmap(
+                                            drawable.intrinsicWidth.coerceIn(1, 96),
+                                            drawable.intrinsicHeight.coerceIn(1, 96),
+                                            Bitmap.Config.ARGB_8888,
+                                        )
+                                        drawable.setBounds(0, 0, bitmap.width, bitmap.height)
+                                        drawable.draw(Canvas(bitmap))
+                                        val iconStream = ByteArrayOutputStream()
+                                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, iconStream)
+                                        bitmap.recycle()
                                         mapOf(
                                             "package" to pkg,
-                                            "label" to packageManager.getApplicationLabel(appInfo).toString(),
+                                            "label" to label,
+                                            "icon" to iconStream.toByteArray(),
                                             "seconds" to (stats.totalTimeInForeground / 1000L),
                                             "category" to if (pkg in categories.first) "productive" else "distracting",
                                         )
                                     } catch (_: Exception) { null }
                                 }
+                                .distinctBy { it["package"] }
                                 .sortedByDescending { (it["seconds"] as Long) }
                             result.success(mapOf("items" to items, "startTime" to start, "endTime" to end))
                         }
