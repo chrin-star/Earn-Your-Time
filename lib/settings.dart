@@ -224,7 +224,7 @@ class SettingsView extends StatelessWidget {
             showSelectedIcon: false,
             segments: [
               for (final language in AppLanguage.values)
-                ButtonSegment(value: language, label: Text(language.label == 'Português (Brasil)' ? 'PT' : language.label == 'Español' ? 'ES' : 'EN')),
+                ButtonSegment(value: language, label: Text(language.label == 'Português (Brasil)' ? 'PT' : language.label == 'Español' ? 'ES' : 'English')),
             ],
             selected: {controller.language},
             onSelectionChanged: (selection) => controller.setLanguage(selection.first),
