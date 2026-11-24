@@ -2,6 +2,7 @@ package io.github.alunoadsnoite.focusfeed
 
 import android.Manifest
 import android.app.Activity
+import android.app.usage.UsageStatsManager
 import org.json.JSONArray
 import org.json.JSONObject
 import android.content.Intent
@@ -11,6 +12,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import java.util.Calendar
 import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -95,7 +97,39 @@ class MainActivity : FlutterActivity() {
                             EarnTimeStore.snapshot(this) + mapOf("monitorRunning" to EarnTimeMonitorService.running,
                                 "usagePermission" to NativeAccess.usage(this),
                                 "overlayPermission" to Settings.canDrawOverlays(this))
-                        )
+                        ),
+                        "appUsage" -> {
+                            check(NativeAccess.usage(this)) { "Activa el acceso al uso de aplicaciones para consultar el historial." }
+                            val categories = EarnTimeStore.categories(this)
+                            val selected = categories.first + categories.second
+                            val end = System.currentTimeMillis()
+                            val startCalendar = Calendar.getInstance().apply {
+                                timeInMillis = end
+                                set(Calendar.HOUR_OF_DAY, 0)
+                                set(Calendar.MINUTE, 0)
+                                set(Calendar.SECOND, 0)
+                                set(Calendar.MILLISECOND, 0)
+                                add(Calendar.DAY_OF_YEAR, -6)
+                            }
+                            val start = startCalendar.timeInMillis
+                            val manager = getSystemService(USAGE_STATS_SERVICE) as UsageStatsManager
+                            val usage = manager.queryAndAggregateUsageStats(start, end)
+                            val items = usage.entries
+                                .filter { it.key in selected && it.value.totalTimeInForeground > 0L }
+                                .mapNotNull { (pkg, stats) ->
+                                    try {
+                                        val appInfo = packageManager.getApplicationInfo(pkg, 0)
+                                        mapOf(
+                                            "package" to pkg,
+                                            "label" to packageManager.getApplicationLabel(appInfo).toString(),
+                                            "seconds" to (stats.totalTimeInForeground / 1000L),
+                                            "category" to if (pkg in categories.first) "productive" else "distracting",
+                                        )
+                                    } catch (_: Exception) { null }
+                                }
+                                .sortedByDescending { (it["seconds"] as Long) }
+                            result.success(mapOf("items" to items, "startTime" to start, "endTime" to end))
+                        }
                         else -> result.notImplemented()
                     }
                 } catch (error: Exception) {
