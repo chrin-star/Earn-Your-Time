@@ -21,6 +21,7 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
     final now = DateTime.now();
     _month = DateTime(now.year, now.month);
     _selected = DateTime(now.year, now.month, now.day);
+    widget.controller.loadAppUsage();
   }
 
   String _key(DateTime date) =>
@@ -144,6 +145,10 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
             _monthlyOverview(context, data),
             const SizedBox(height: 12),
             _personalRecords(context, data),
+            const SizedBox(height: 12),
+            _achievements(context, data),
+            const SizedBox(height: 12),
+            _appUsageOverview(context),
             const SizedBox(height: 16),
             Card(
               child: Padding(
@@ -327,7 +332,10 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
             Align(
               alignment: Alignment.centerRight,
               child: TextButton.icon(
-                onPressed: widget.controller.busy ? null : widget.controller.refresh,
+                onPressed: widget.controller.busy ? null : () async {
+                  await widget.controller.refresh();
+                  await widget.controller.loadAppUsage();
+                },
                 icon: const Icon(Icons.refresh),
                 label: const Text('Actualizar'),
               ),
@@ -396,6 +404,224 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
     return best.isEmpty ? null : best.first;
   }
 
+
+
+  Widget _achievements(BuildContext context, Map<String, dynamic> data) {
+    final records = _recordsByDate(data);
+    final totalProductive = records.values.fold<int>(
+        0, (sum, record) => sum + _productive(record));
+    final activeDays = records.values
+        .where((record) =>
+            _productive(record) > 0 ||
+            ((record['distractingSeconds'] as num?)?.toInt() ?? 0) > 0)
+        .length;
+    final longest = _longestStreak(data);
+    final completedDays = records.values
+        .where((record) =>
+            _productive(record) > 0 &&
+            _productive(record) >= _goal(record))
+        .length;
+    final achievements = <({String title, String description, IconData icon, bool unlocked})>[
+      (title: 'Primer paso', description: 'Registra tu primer día', icon: Icons.flag_rounded, unlocked: activeDays >= 1),
+      (title: 'Una hora de enfoque', description: 'Acumula 1 hora productiva', icon: Icons.timer_rounded, unlocked: totalProductive >= 3600),
+      (title: 'Diez horas', description: 'Acumula 10 horas productivas', icon: Icons.bolt_rounded, unlocked: totalProductive >= 36000),
+      (title: 'Cien horas', description: 'Acumula 100 horas productivas', icon: Icons.workspace_premium_rounded, unlocked: totalProductive >= 360000),
+      (title: 'Meta cumplida', description: 'Alcanza tu meta diaria', icon: Icons.check_circle_rounded, unlocked: completedDays >= 1),
+      (title: 'Constancia', description: 'Cumple la meta 3 días seguidos', icon: Icons.local_fire_department_rounded, unlocked: longest >= 3),
+      (title: 'Una semana fuerte', description: 'Cumple la meta 7 días seguidos', icon: Icons.military_tech_rounded, unlocked: longest >= 7),
+      (title: 'Cinco días activos', description: 'Usa Earn Your Time 5 días', icon: Icons.calendar_month_rounded, unlocked: activeDays >= 5),
+    ];
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.emoji_events_outlined,
+                    color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('Sistema de logros',
+                      style: Theme.of(context).textTheme.titleLarge),
+                ),
+                Text('${achievements.where((item) => item.unlocked).length}/${achievements.length}',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text('Insignias que se desbloquean automáticamente al alcanzar objetivos.',
+                style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 14),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: achievements.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 9,
+                mainAxisSpacing: 9,
+                childAspectRatio: 1.65,
+              ),
+              itemBuilder: (context, index) {
+                final item = achievements[index];
+                final color = item.unlocked
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.onSurfaceVariant;
+                return Container(
+                  padding: const EdgeInsets.all(11),
+                  decoration: BoxDecoration(
+                    color: item.unlocked
+                        ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.55)
+                        : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: item.unlocked
+                          ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.35)
+                          : Theme.of(context).colorScheme.outlineVariant,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(item.unlocked ? item.icon : Icons.lock_outline_rounded,
+                          color: color, size: 24),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(item.title,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: color)),
+                            const SizedBox(height: 3),
+                            Text(item.description,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.labelSmall),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _appUsageOverview(BuildContext context) {
+    final controller = widget.controller;
+    final items = controller.appUsage;
+    final productive = items
+        .where((item) => item['category'] == 'productive')
+        .fold<int>(0, (sum, item) => sum + ((item['seconds'] as num?)?.toInt() ?? 0));
+    final distracting = items
+        .where((item) => item['category'] == 'distracting')
+        .fold<int>(0, (sum, item) => sum + ((item['seconds'] as num?)?.toInt() ?? 0));
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.phone_android_rounded,
+                    color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('Historial de aplicaciones',
+                      style: Theme.of(context).textTheme.titleLarge),
+                ),
+                IconButton(
+                  tooltip: 'Actualizar historial',
+                  onPressed: controller.appUsageLoading ? null : controller.loadAppUsage,
+                  icon: const Icon(Icons.refresh_rounded),
+                ),
+              ],
+            ),
+            Text('Uso registrado por Android durante los últimos 7 días.',
+                style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 12),
+            if (controller.appUsageLoading)
+              const LinearProgressIndicator()
+            else if (controller.appUsageError != null)
+              Text(controller.appUsageError!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.error))
+            else if (items.isEmpty)
+              Text(
+                'Todavía no hay uso disponible para las aplicaciones que clasificaste. Comprueba que el permiso de acceso al uso esté activado.',
+                style: Theme.of(context).textTheme.bodyMedium)
+            else ...[
+              Row(
+                children: [
+                  Expanded(child: _statMetric(context, _duration(productive), 'Productivas')),
+                  Expanded(child: _statMetric(context, _duration(distracting), 'Distractoras')),
+                ],
+              ),
+              const Divider(height: 22),
+              ...items.take(8).map((item) {
+                final isProductive = item['category'] == 'productive';
+                final color = isProductive
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.error;
+                final seconds = (item['seconds'] as num?)?.toInt() ?? 0;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 7),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(Icons.apps_rounded, size: 18, color: color),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(item['label']?.toString() ?? 'Aplicación',
+                                maxLines: 1, overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w700)),
+                            Text(isProductive ? 'Productiva' : 'Distractora',
+                                style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color)),
+                          ],
+                        ),
+                      ),
+                      Text(_duration(seconds),
+                          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                              fontWeight: FontWeight.w700)),
+                    ],
+                  ),
+                );
+              }),
+              if (items.length > 8)
+                Text('Mostrando las 8 aplicaciones con más uso.',
+                    style: Theme.of(context).textTheme.labelSmall),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _monthlyOverview(BuildContext context, Map<String, dynamic> data) {
     final records = _recordsByDate(data);
