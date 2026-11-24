@@ -508,44 +508,70 @@ class _EarnTimeViewState extends State<EarnTimeView> with WidgetsBindingObserver
           ),
         ),
         const SizedBox(height: 12),
-        Text('Configuración diaria', style: theme.textTheme.titleLarge),
-        const SizedBox(height: 4),
-        const Text('Este es el saldo con el que comienzas cada día; el tiempo productivo se suma y el distractor se descuenta.'),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _allowanceInput,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Saldo base diario (minutos)',
-            helperText: 'Puedes escribir cualquier valor entre 1 y 1440.',
-            border: OutlineInputBorder(),
+        Card(
+          clipBehavior: Clip.antiAlias,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(Icons.tune_rounded, color: theme.colorScheme.onPrimaryContainer),
+                  ),
+                  const SizedBox(width: 11),
+                  Expanded(child: Text('Configuración diaria',
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800))),
+                ]),
+                const SizedBox(height: 10),
+                Text('Este es el saldo con el que comienzas cada día; el tiempo productivo se suma y el distractor se descuenta.',
+                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _allowanceInput,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Saldo base diario (minutos)',
+                    helperText: 'Puedes escribir cualquier valor entre 1 y 1440.',
+                  ),
+                  onSubmitted: (_) => _commitNumericSettings(),
+                ),
+                const SizedBox(height: 14),
+                Text('Conversión de tiempo', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text('Cuánto tiempo para distracciones ganas por cada minuto productivo.',
+                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _conversionInput,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Minutos de distracción por 1 minuto productivo',
+                    helperText: 'Ejemplos: 1 = 1 min, 2 = 2 min, 0,5 = 30 s. Hasta 2 decimales.',
+                  ),
+                  onSubmitted: (_) => _commitNumericSettings(),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(width: double.infinity, child: FilledButton.tonalIcon(
+                  onPressed: c.busy ? null : _commitNumericSettings,
+                  icon: const Icon(Icons.check_rounded),
+                  label: const Text('Guardar configuración'),
+                )),
+                if (_settingsError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(_settingsError!, style: TextStyle(color: theme.colorScheme.error)),
+                  ),
+              ],
+            ),
           ),
-          onSubmitted: (_) => _commitNumericSettings(),
         ),
-        const SizedBox(height: 12),
-        Text('Conversión de tiempo', style: theme.textTheme.titleMedium),
-        const Text('Indica cuánto tiempo para distracciones ganas por cada minuto que usas una aplicación productiva.'),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _conversionInput,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: 'Minutos de distracción por 1 minuto productivo',
-            helperText: 'Ejemplos: 1 = 1 min, 2 = 2 min, 0,5 = 30 s. Admite hasta 2 decimales.',
-            border: OutlineInputBorder(),
-          ),
-          onSubmitted: (_) => _commitNumericSettings(),
-        ),
-        const SizedBox(height: 8),
-        FilledButton.tonal(
-          onPressed: c.busy ? null : _commitNumericSettings,
-          child: const Text('Guardar configuración'),
-        ),
-        if (_settingsError != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Text(_settingsError!, style: TextStyle(color: theme.colorScheme.error)),
-          ),
       ],
     );
   }
@@ -669,22 +695,72 @@ class _EarnTimeApplicationsViewState extends State<EarnTimeApplicationsView> {
             ? EarnAppCategory.distracting
             : EarnAppCategory.ignored;
 
+    final productiveColor = theme.colorScheme.primary;
+    final distractingColor = theme.colorScheme.error;
+    final ignoredColor = theme.colorScheme.onSurfaceVariant;
+    final distractingCount = _distracting.length;
+    final productiveCount = _productive.length;
+
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+      padding: const EdgeInsets.fromLTRB(18, 12, 18, 32),
       children: [
-        Text('Tus aplicaciones', style: theme.textTheme.headlineSmall),
-        const SizedBox(height: 4),
-        const Text('Decide qué aplicaciones te ayudan a ganar tiempo y cuáles consumen tu saldo.'),
-        const SizedBox(height: 16),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(2, 4, 2, 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Tus aplicaciones', style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+              )),
+              const SizedBox(height: 5),
+              Text(
+                'Organiza tus apps para decidir cuáles te ayudan a ganar tiempo y cuáles lo consumen.',
+                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Expanded(child: _categorySummary(
+                  theme, Icons.trending_up_rounded, 'Productivas',
+                  productiveCount, productiveColor,
+                )),
+                Container(width: 1, height: 48, color: theme.colorScheme.outlineVariant),
+                Expanded(child: _categorySummary(
+                  theme, Icons.hourglass_bottom_rounded, 'Distractoras',
+                  distractingCount, distractingColor,
+                )),
+                Container(width: 1, height: 48, color: theme.colorScheme.outlineVariant),
+                Expanded(child: _categorySummary(
+                  theme, Icons.remove_circle_outline_rounded, 'Ignoradas',
+                  (widget.apps.length - productiveCount - distractingCount).clamp(0, widget.apps.length),
+                  ignoredColor,
+                )),
+              ],
+            ),
+          ),
+        ),
         if (c.monitorRunning)
           Card(
             color: theme.colorScheme.tertiaryContainer,
-            child: const ListTile(
-              leading: Icon(Icons.info_outline),
-              title: Text('Detén el seguimiento para editar categorías'),
-              subtitle: Text('Así evitamos cambios de clasificación a mitad del conteo.'),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(children: [
+                Icon(Icons.lock_clock_rounded, color: theme.colorScheme.onTertiaryContainer),
+                const SizedBox(width: 12),
+                Expanded(child: Text(
+                  'Detén el seguimiento para editar categorías. Así evitamos cambios a mitad del conteo.',
+                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onTertiaryContainer),
+                )),
+              ]),
             ),
           ),
+        const SizedBox(height: 4),
         TextField(
           controller: _search,
           onChanged: (_) => setState(() {}),
@@ -692,13 +768,12 @@ class _EarnTimeApplicationsViewState extends State<EarnTimeApplicationsView> {
           decoration: InputDecoration(
             labelText: 'Buscar aplicación',
             hintText: 'Nombre de la app',
-            prefixIcon: const Icon(Icons.search),
+            prefixIcon: const Icon(Icons.search_rounded),
             suffixIcon: _search.text.isEmpty ? null : IconButton(
               tooltip: 'Borrar búsqueda',
               onPressed: () { _search.clear(); setState(() {}); },
-              icon: const Icon(Icons.close),
+              icon: const Icon(Icons.close_rounded),
             ),
-            border: const OutlineInputBorder(),
           ),
         ),
         const SizedBox(height: 12),
@@ -714,57 +789,105 @@ class _EarnTimeApplicationsViewState extends State<EarnTimeApplicationsView> {
             _categoryFilter('Ignoradas', EarnAppCategory.ignored),
           ]),
         ),
-        const SizedBox(height: 12),
-        Row(children: [
-          _countChip('Productivas', _productive.length, theme.colorScheme.primary),
-          const SizedBox(width: 8),
-          _countChip('Distractoras', _distracting.length, theme.colorScheme.error),
-        ]),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(child: Text(
+              _filter == null ? 'Todas las aplicaciones' : switch (_filter!) {
+                EarnAppCategory.productive => 'Aplicaciones productivas',
+                EarnAppCategory.distracting => 'Aplicaciones distractoras',
+                EarnAppCategory.ignored => 'Aplicaciones ignoradas',
+              },
+              style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+            )),
+            Text('${apps.length}', style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          ],
+        ),
         const SizedBox(height: 8),
         if (apps.isEmpty)
-          Card(child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(children: [
-              const Icon(Icons.search_off, size: 32),
-              const SizedBox(height: 8),
-              Text(query.isEmpty ? 'No hay aplicaciones en esta categoría.' : 'No se encontraron aplicaciones.'),
-            ]),
-          ))
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(children: [
+                Icon(Icons.search_off_rounded, size: 34, color: theme.colorScheme.onSurfaceVariant),
+                const SizedBox(height: 10),
+                Text(query.isEmpty ? 'No hay aplicaciones en esta categoría.' : 'No se encontraron aplicaciones.'),
+              ]),
+            ),
+          )
         else
           ...apps.map((app) {
             final category = categoryOf(app);
             final enabled = !c.busy && !c.monitorRunning;
+            final color = switch (category) {
+              EarnAppCategory.productive => productiveColor,
+              EarnAppCategory.distracting => distractingColor,
+              EarnAppCategory.ignored => ignoredColor,
+            };
+            final categoryLabel = switch (category) {
+              EarnAppCategory.productive => 'Productiva',
+              EarnAppCategory.distracting => 'Distractora',
+              EarnAppCategory.ignored => 'Ignorada',
+            };
             return Card(
-              margin: const EdgeInsets.only(bottom: 6),
-              child: ListTile(
-                minVerticalPadding: 10,
-                leading: app.icon == null
-                    ? const CircleAvatar(child: Icon(Icons.apps))
-                    : ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.memory(app.icon!, width: 42, height: 42)),
-                title: Text(app.label, maxLines: 1, overflow: TextOverflow.ellipsis),
-                subtitle: Text(switch (category) {
-                  EarnAppCategory.productive => 'Productiva · genera saldo',
-                  EarnAppCategory.distracting => 'Distractora · consume saldo',
-                  EarnAppCategory.ignored => 'Ignorada · no se cuenta',
-                }),
-                trailing: PopupMenuButton<EarnAppCategory>(
-                  enabled: enabled,
-                  tooltip: 'Cambiar categoría de ${app.label}',
-                  initialValue: category,
-                  onSelected: (value) => _setCategory(app.package, value),
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(value: EarnAppCategory.productive, child: Text('Productiva')),
-                    PopupMenuItem(value: EarnAppCategory.distracting, child: Text('Distractora')),
-                    PopupMenuItem(value: EarnAppCategory.ignored, child: Text('Ignorar')),
+              margin: const EdgeInsets.only(bottom: 8),
+              clipBehavior: Clip.antiAlias,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      alignment: Alignment.center,
+                      child: app.icon == null
+                          ? Icon(Icons.apps_rounded, color: color, size: 24)
+                          : ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: Image.memory(app.icon!, width: 38, height: 38, fit: BoxFit.contain),
+                            ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(app.label, maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 4),
+                          Row(children: [
+                            Container(width: 7, height: 7, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+                            const SizedBox(width: 6),
+                            Text(categoryLabel, style: theme.textTheme.labelSmall?.copyWith(color: color, fontWeight: FontWeight.w700)),
+                          ]),
+                        ],
+                      ),
+                    ),
+                    PopupMenuButton<EarnAppCategory>(
+                      enabled: enabled,
+                      tooltip: 'Cambiar categoría de ${app.label}',
+                      initialValue: category,
+                      onSelected: (value) => _setCategory(app.package, value),
+                      icon: Icon(Icons.more_vert_rounded, color: theme.colorScheme.onSurfaceVariant),
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(value: EarnAppCategory.productive, child: Text('Productiva · ganar tiempo')),
+                        PopupMenuItem(value: EarnAppCategory.distracting, child: Text('Distractora · gastar tiempo')),
+                        PopupMenuItem(value: EarnAppCategory.ignored, child: Text('Ignorar aplicación')),
+                      ],
+                    ),
                   ],
                 ),
               ),
             );
           }),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         OutlinedButton.icon(
           onPressed: c.busy ? null : _load,
-          icon: const Icon(Icons.refresh),
+          icon: const Icon(Icons.refresh_rounded),
           label: const Text('Actualizar lista de aplicaciones'),
         ),
       ],
@@ -777,10 +900,17 @@ class _EarnTimeApplicationsViewState extends State<EarnTimeApplicationsView> {
     onSelected: (_) => setState(() => _filter = value),
   );
 
-  Widget _countChip(String label, int count, Color color) => Chip(
-    avatar: CircleAvatar(radius: 10, backgroundColor: color, child: Text('$count', style: const TextStyle(fontSize: 11, color: Colors.white))),
-    label: Text(label),
-  );
+  Widget _categorySummary(ThemeData theme, IconData icon, String label, int count, Color color) =>
+      Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 19),
+          const SizedBox(height: 5),
+          Text('$count', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800, color: color)),
+          Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        ],
+      );
 }
 
 /// Resumen de lo que ha ocurrido hoy en Earn Your Time.
