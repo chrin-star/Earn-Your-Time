@@ -131,12 +131,12 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
                 Expanded(child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(section == EarnCalendarSection.calendar ? 'Tu progreso' : section == EarnCalendarSection.records ? 'Récords personales' : 'Sistema de logros', style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    Text(widget.section == EarnCalendarSection.calendar ? 'Tu progreso' : widget.section == EarnCalendarSection.records ? 'Récords personales' : 'Sistema de logros', style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.5,
                     )),
                     const SizedBox(height: 3),
-                    Text(section == EarnCalendarSection.calendar ? 'Calendario de productividad' : section == EarnCalendarSection.records ? 'Tus mejores resultados' : 'Insignias que puedes desbloquear',
+                    Text(widget.section == EarnCalendarSection.calendar ? 'Calendario de productividad' : widget.section == EarnCalendarSection.records ? 'Tus mejores resultados' : 'Insignias que puedes desbloquear',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       )),
@@ -145,9 +145,9 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
               ],
             ),
             const SizedBox(height: 16),
-            if (section == EarnCalendarSection.records) ...[
+            if (widget.section == EarnCalendarSection.records) ...[
               _personalRecords(context, data),
-            ] else if (section == EarnCalendarSection.achievements) ...[
+            ] else if (widget.section == EarnCalendarSection.achievements) ...[
               _achievements(context, data),
             ] else ...[
               _weeklyOverview(context, data),
