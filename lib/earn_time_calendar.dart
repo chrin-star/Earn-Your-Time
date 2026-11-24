@@ -108,16 +108,37 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
           children: [
-            Text('Tu progreso', style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
-            )),
-            const SizedBox(height: 4),
-            Text('Calendario de productividad',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Icon(Icons.insights_rounded,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Tu progreso', style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                    )),
+                    const SizedBox(height: 3),
+                    Text('Calendario de productividad',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      )),
+                  ],
                 )),
-            const SizedBox(height: 14),
+              ],
+            ),
+            const SizedBox(height: 16),
             _weeklyOverview(context, data),
             const SizedBox(height: 16),
             Card(
