@@ -22,6 +22,8 @@ enum AppThemeMode {
 }
 
 abstract class SettingsPlatform {
+  Future<bool> createBackup();
+  Future<bool> restoreBackup();
   Future<String?> loadTheme();
   Future<void> saveTheme(String value);
   Future<String?> loadLanguage();
@@ -30,6 +32,12 @@ abstract class SettingsPlatform {
 
 class NativeSettingsPlatform implements SettingsPlatform {
   static const channel = MethodChannel('focusfeed/settings');
+
+  @override
+  Future<bool> createBackup() async => await channel.invokeMethod<bool>('createBackup') ?? false;
+
+  @override
+  Future<bool> restoreBackup() async => await channel.invokeMethod<bool>('restoreBackup') ?? false;
 
   @override
   Future<String?> loadTheme() => channel.invokeMethod<String>('loadTheme');
@@ -307,6 +315,53 @@ class SettingsView extends StatelessWidget {
             icon: const Icon(Icons.open_in_new),
             label: const Text('GitHub Sponsors'),
           ),
+          const SizedBox(height: 24),
+          Text('Copia de seguridad', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 8),
+          const Text('Guarda tu racha, historial, saldo, aplicaciones y ajustes en un archivo que puedes conservar en el teléfono o en Google Drive. Restaurar reemplaza los datos actuales.'),
+          const SizedBox(height: 12),
+          Card(child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              FilledButton.icon(
+                icon: const Icon(Icons.backup_outlined),
+                label: const Text('Crear copia de seguridad'),
+                onPressed: () async {
+                  try {
+                    final ok = await NativeSettingsPlatform().createBackup();
+                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok ? 'Copia guardada.' : 'No se creó la copia.')));
+                  } catch (e) {
+                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al crear la copia: $e')));
+                  }
+                },
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.restore_outlined),
+                label: const Text('Restaurar copia de seguridad'),
+                onPressed: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (dialogContext) => AlertDialog(
+                      title: const Text('¿Restaurar copia?'),
+                      content: const Text('Esto reemplazará el progreso y los ajustes actuales con los datos del archivo elegido. No se puede deshacer.'),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancelar')),
+                        FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Continuar')),
+                      ],
+                    ),
+                  );
+                  if (confirm != true) return;
+                  try {
+                    final ok = await NativeSettingsPlatform().restoreBackup();
+                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok ? 'Copia restaurada. Reinicia Earn Your Time para actualizar los datos.' : 'No se restauró la copia.')));
+                  } catch (e) {
+                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al restaurar: $e')));
+                  }
+                },
+              ),
+            ]),
+          )),
           const SizedBox(height: 24),
           Text(strings.text('Sobre'), style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
