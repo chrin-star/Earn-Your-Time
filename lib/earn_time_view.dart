@@ -432,25 +432,54 @@ class _EarnTimeViewState extends State<EarnTimeView> with WidgetsBindingObserver
           ),
         ),
         Card(
-          child: ListTile(
-            leading: Icon(
-              c.monitorRunning ? Icons.track_changes : Icons.pause_circle_outline,
-              color: c.monitorRunning ? Colors.green : null,
-            ),
-            title: Text(c.monitorRunning ? 'Seguimiento activo' : 'Seguimiento detenido'),
-            subtitle: Text(
-              usagePermission
-                  ? (c.overlayPermission
-                      ? 'Seguimiento y bloqueo automático disponibles.'
-                      : 'Falta el permiso para mostrar la pantalla de bloqueo sobre otras apps.')
-                  : 'Necesitas permitir el acceso al uso de aplicaciones.',
-            ),
-            trailing: c.monitorRunning
-                ? OutlinedButton(
+          clipBehavior: Clip.antiAlias,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: (c.monitorRunning ? Colors.green : theme.colorScheme.tertiary).withValues(alpha: 0.13),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    c.monitorRunning ? Icons.monitor_heart_rounded : Icons.pause_circle_outline_rounded,
+                    color: c.monitorRunning ? Colors.green : theme.colorScheme.tertiary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Seguimiento', style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                  Text(c.monitorRunning ? 'Todo en marcha' : 'Aún no está activo', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+                ])),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: (c.monitorRunning ? Colors.green : theme.colorScheme.outline).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Text(c.monitorRunning ? 'ACTIVO' : 'PAUSADO', style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w800, color: c.monitorRunning ? Colors.green : theme.colorScheme.onSurfaceVariant)),
+                ),
+              ]),
+              const SizedBox(height: 12),
+              Text(
+                usagePermission
+                    ? (c.overlayPermission
+                        ? 'Seguimiento y bloqueo automático disponibles.'
+                        : 'Falta el permiso para mostrar la pantalla de bloqueo sobre otras apps.')
+                    : 'Necesitas permitir el acceso al uso de aplicaciones.',
+                style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 14),
+              SizedBox(width: double.infinity, child: c.monitorRunning
+                ? OutlinedButton.icon(
                     onPressed: c.busy ? null : c.stop,
-                    child: const Text('Detener'),
+                    icon: const Icon(Icons.pause_rounded),
+                    label: const Text('Detener seguimiento'),
                   )
-                : FilledButton(
+                : FilledButton.icon(
                     onPressed: c.busy
                         ? null
                         : !usagePermission
@@ -458,14 +487,10 @@ class _EarnTimeViewState extends State<EarnTimeView> with WidgetsBindingObserver
                             : !c.overlayPermission
                                 ? c.requestOverlayAccess
                                 : c.start,
-                    child: Text(
-                      !usagePermission
-                          ? 'Permitir acceso'
-                          : !c.overlayPermission
-                              ? 'Activar bloqueo'
-                              : 'Iniciar',
-                    ),
-                  ),
+                    icon: Icon(!usagePermission ? Icons.security_rounded : !c.overlayPermission ? Icons.layers_outlined : Icons.play_arrow_rounded),
+                    label: Text(!usagePermission ? 'Permitir acceso' : !c.overlayPermission ? 'Activar bloqueo' : 'Iniciar seguimiento'),
+                  )),
+            ]),
           ),
         ),
         if (c.error != null)
