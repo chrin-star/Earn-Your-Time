@@ -33,12 +33,16 @@ abstract class SettingsPlatform {
 
 class NativeSettingsPlatform implements SettingsPlatform {
   static const channel = MethodChannel('focusfeed/settings');
+  // Backup and restore are implemented by MainActivity's earn_time channel.
+  static const backupChannel = MethodChannel('focusfeed/earn_time');
 
   @override
-  Future<bool> createBackup() async => await channel.invokeMethod<bool>('createBackup') ?? false;
+  Future<bool> createBackup() async =>
+      await backupChannel.invokeMethod<bool>('createBackup') ?? false;
 
   @override
-  Future<bool> restoreBackup() async => await channel.invokeMethod<bool>('restoreBackup') ?? false;
+  Future<bool> restoreBackup() async =>
+      await backupChannel.invokeMethod<bool>('restoreBackup') ?? false;
 
   @override
   Future<String?> loadTheme() => channel.invokeMethod<String>('loadTheme');
