@@ -1,6 +1,9 @@
 package io.github.alunoadsnoite.focusfeed
 
 import android.Manifest
+import android.app.Activity
+import org.json.JSONArray
+import org.json.JSONObject
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -16,6 +19,10 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     private val main = Handler(Looper.getMainLooper())
     private var notificationResult: MethodChannel.Result? = null
+    private var backupResult: MethodChannel.Result? = null
+    private val backupCreateCode = 7101
+    private val backupRestoreCode = 7102
+    private val backupPrefs = listOf("earn_time_data", "focusfeed_progress", "focusfeed_options")
     private fun awaitMonitorState(
         expectedRunning: Boolean,
         result: MethodChannel.Result,
@@ -41,6 +48,17 @@ class MainActivity : FlutterActivity() {
             .setMethodCallHandler { call, result ->
                 try {
                     when (call.method) {
+                        "createBackup", "restoreBackup" -> {
+                            check(backupResult == null) { "Ya hay una operación de copia en curso." }
+                            backupResult = result
+                            val creating = call.method == "createBackup"
+                            val intent = Intent(if (creating) Intent.ACTION_CREATE_DOCUMENT else Intent.ACTION_OPEN_DOCUMENT)
+                            intent.addCategory(Intent.CATEGORY_OPENABLE)
+                            intent.type = "application/json"
+                            if (creating) intent.putExtra(Intent.EXTRA_TITLE, "EarnYourTime-backup.json")
+                            startActivityForResult(intent, if (creating) backupCreateCode else backupRestoreCode)
+                            return@setMethodCallHandler
+                        }
                         "configure" -> {
                             val productive = (call.argument<List<String>>("productivePackages") ?: emptyList()).toSet()
                             val distracting = (call.argument<List<String>>("distractingPackages") ?: emptyList()).toSet()
@@ -220,6 +238,64 @@ class MainActivity : FlutterActivity() {
                 }
             }
     }
+    private fun backupJson(): JSONObject {
+        EarnTimeStore.flush(this)
+        NativeSessionRepository.advance(this, forceSave = true)
+        val prefs = JSONObject()
+        backupPrefs.forEach { name ->
+            val values = JSONObject()
+            getSharedPreferences(name, MODE_PRIVATE).all.forEach { (key, value) ->
+                values.put(key, if (value is Set<*>) JSONArray(value.filterIsInstance<String>()) else value)
+            }
+            prefs.put(name, values)
+        }
+        return JSONObject().put("format", "earn-your-time-backup").put("version", 1).put("preferences", prefs)
+    }
+
+    private fun restoreJson(root: JSONObject) {
+        require(root.optString("format") == "earn-your-time-backup" && root.optInt("version") == 1) { "Archivo incompatible." }
+        val all = root.getJSONObject("preferences")
+        backupPrefs.forEach { name ->
+            val values = all.getJSONObject(name)
+            val editor = getSharedPreferences(name, MODE_PRIVATE).edit().clear()
+            values.keys().forEach { key ->
+                val value = values.get(key)
+                when (value) {
+                    is String -> editor.putString(key, value)
+                    is Boolean -> editor.putBoolean(key, value)
+                    is Int -> editor.putInt(key, value)
+                    is Long -> editor.putLong(key, value)
+                    is Double -> editor.putFloat(key, value.toFloat())
+                    is JSONArray -> editor.putStringSet(key, (0 until value.length()).map { value.getString(it) }.toSet())
+                }
+            }
+            check(editor.commit()) { "No se pudo restaurar " + name }
+        }
+        EarnTimeStore.forgetCacheForBackupRestore()
+        NativeSessionRepository.forgetCacheForTests()
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != backupCreateCode && requestCode != backupRestoreCode) return
+        if (resultCode != Activity.RESULT_OK || data?.data == null) {
+            backupResult?.success(false); backupResult = null; return
+        }
+        try {
+            val uri = data.data!!
+            if (requestCode == backupCreateCode) {
+                contentResolver.openOutputStream(uri, "wt")!!.use { it.write(backupJson().toString(2).toByteArray(Charsets.UTF_8)) }
+            } else {
+                val raw = contentResolver.openInputStream(uri)!!.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                restoreJson(JSONObject(raw))
+            }
+            backupResult?.success(true)
+        } catch (error: Exception) {
+            backupResult?.error("backup_error", error.message ?: "Error de copia.", null)
+        }
+        backupResult = null
+    }
+
     private fun status(snapshot: String) = mapOf("progress" to snapshot,
         "monitorRunning" to FocusBlockingService.running,
         "permissionsReady" to NativeAccess.canBlock(this),
