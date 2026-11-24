@@ -285,6 +285,11 @@ void main() {
 }
 
 class _FakeSettingsPlatform implements SettingsPlatform {
+  @override
+  Future<bool> createBackup() async => true;
+  @override
+  Future<bool> restoreBackup() async => true;
+
   String? storedLanguage;
 
   @override
