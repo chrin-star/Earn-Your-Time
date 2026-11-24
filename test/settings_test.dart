@@ -4,6 +4,11 @@ import 'package:focus_feed/settings.dart';
 import 'package:focus_feed/focus_strings.dart';
 
 class FakeSettingsPlatform implements SettingsPlatform {
+  @override
+  Future<bool> createBackup() async => true;
+  @override
+  Future<bool> restoreBackup() async => true;
+
   String? storedLanguage;
 
   @override
