@@ -31,6 +31,9 @@ class EarnTimeController extends ChangeNotifier {
 
   final EarnTimePlatform _platform;
   Map<String, dynamic> data = {};
+  List<Map<String, dynamic>> appUsage = [];
+  bool appUsageLoading = false;
+  String? appUsageError;
   bool busy = false;
   String? error;
   bool _disposed = false;
@@ -60,6 +63,28 @@ class EarnTimeController extends ChangeNotifier {
       error = 'No se pudo consultar Earn Your Time.';
     } finally {
       busy = false;
+      _notify();
+    }
+  }
+
+  Future<void> loadAppUsage() async {
+    if (_disposed || appUsageLoading) return;
+    appUsageLoading = true;
+    appUsageError = null;
+    _notify();
+    try {
+      final result = await _platform.invoke('appUsage');
+      final items = (result['items'] as List?) ?? const [];
+      appUsage = items
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList();
+    } on PlatformException catch (e) {
+      appUsageError = e.message ?? 'No se pudo consultar el historial de aplicaciones.';
+    } catch (_) {
+      appUsageError = 'No se pudo consultar el historial de aplicaciones.';
+    } finally {
+      appUsageLoading = false;
       _notify();
     }
   }
