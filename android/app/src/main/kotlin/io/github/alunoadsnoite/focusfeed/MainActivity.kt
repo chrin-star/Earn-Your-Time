@@ -97,7 +97,7 @@ class MainActivity : FlutterActivity() {
                             EarnTimeStore.snapshot(this) + mapOf("monitorRunning" to EarnTimeMonitorService.running,
                                 "usagePermission" to NativeAccess.usage(this),
                                 "overlayPermission" to Settings.canDrawOverlays(this))
-                        ),
+                        )
                         "appUsage" -> {
                             check(NativeAccess.usage(this)) { "Activa el acceso al uso de aplicaciones para consultar el historial." }
                             val categories = EarnTimeStore.categories(this)
