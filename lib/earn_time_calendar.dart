@@ -140,6 +140,9 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
             ),
             const SizedBox(height: 16),
             _weeklyOverview(context, data),
+            const SizedBox(height: 12),
+            _monthlyOverview(context, data),
+            const SizedBox(height: 12),
             const SizedBox(height: 16),
             Card(
               child: Padding(
@@ -390,6 +393,195 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
         .toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     return best.isEmpty ? null : best.first;
+  }
+
+
+  Widget _monthlyOverview(BuildContext context, Map<String, dynamic> data) {
+    final records = _recordsByDate(data);
+    final prefix = _key(DateTime(_month.year, _month.month, 1)).substring(0, 7);
+    final monthRecords = records.entries
+        .where((entry) => entry.key.startsWith(prefix))
+        .map((entry) => entry.value)
+        .toList();
+    final productive = monthRecords.fold<int>(
+        0, (sum, record) => sum + _productive(record));
+    final distracting = monthRecords.fold<int>(
+        0,
+        (sum, record) =>
+            sum + ((record['distractingSeconds'] as num?)?.toInt() ?? 0));
+    final earned = monthRecords.fold<int>(
+        0,
+        (sum, record) =>
+            sum + ((record['earnedSeconds'] as num?)?.toInt() ?? 0));
+    final activeDays = monthRecords
+        .where((record) =>
+            _productive(record) > 0 ||
+            ((record['distractingSeconds'] as num?)?.toInt() ?? 0) > 0)
+        .length;
+    final completedDays = monthRecords
+        .where((record) =>
+            _productive(record) > 0 &&
+            _productive(record) >= _goal(record))
+        .length;
+    final tracked = productive + distracting;
+    final productiveShare = tracked == 0 ? 0.0 : productive / tracked;
+    final average = activeDays == 0 ? 0 : productive ~/ activeDays;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.calendar_view_month_rounded,
+                    color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('Resumen del mes',
+                      style: Theme.of(context).textTheme.titleLarge),
+                ),
+                Text('${_month.month}/${_month.year}',
+                    style: Theme.of(context).textTheme.labelMedium),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: _statMetric(context, _duration(productive),
+                      'Tiempo productivo'),
+                ),
+                Expanded(
+                  child: _statMetric(context, '$activeDays',
+                      'Días con actividad'),
+                ),
+                Expanded(
+                  child: _statMetric(context, '$completedDays',
+                      'Metas alcanzadas'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                value: productiveShare,
+                minHeight: 9,
+                backgroundColor:
+                    Theme.of(context).colorScheme.surfaceContainerHighest,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '${(productiveShare * 100).round()}% del tiempo registrado fue productivo',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const Divider(height: 22),
+            _detail('Promedio por día activo', _duration(average)),
+            _detail('Tiempo ganado', _duration(earned)),
+            _detail('Tiempo en distracciones', _duration(distracting)),
+            if (activeDays == 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'Aún no hay actividad registrada en este mes.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  int _longestStreak(Map<String, dynamic> data) {
+    final records = _recordsByDate(data);
+    final entries = records.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    var longest = 0;
+    var current = 0;
+    DateTime? previous;
+    for (final entry in entries) {
+      final date = DateTime.tryParse(entry.key);
+      if (date == null) continue;
+      final productive = _productive(entry.value);
+      final reachedGoal = productive > 0 && productive >= _goal(entry.value);
+      if (!reachedGoal) {
+        current = 0;
+        previous = null;
+        continue;
+      }
+      if (previous != null && date.difference(previous).inDays == 1) {
+        current++;
+      } else {
+        current = 1;
+      }
+      if (current > longest) longest = current;
+      previous = date;
+    }
+    return longest;
+  }
+
+  Widget _personalRecords(BuildContext context, Map<String, dynamic> data) {
+    final records = _recordsByDate(data);
+    final best = _bestDay(data);
+    final totalProductive = records.values.fold<int>(
+        0, (sum, record) => sum + _productive(record));
+    final activeDays = records.values
+        .where((record) =>
+            _productive(record) > 0 ||
+            ((record['distractingSeconds'] as num?)?.toInt() ?? 0) > 0)
+        .length;
+    final longest = _longestStreak(data);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.emoji_events_outlined,
+                    color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 8),
+                Text('Tus récords personales',
+                    style: Theme.of(context).textTheme.titleLarge),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: _statMetric(
+                    context,
+                    best == null ? '—' : _duration(best.value),
+                    'Mejor día',
+                    subtitle: best == null
+                        ? 'Aún sin registros'
+                        : best.key.split('-').reversed.join('/'),
+                  ),
+                ),
+                Expanded(
+                  child: _statMetric(context, '$longest días',
+                      'Racha más larga'),
+                ),
+              ],
+            ),
+            const Divider(height: 22),
+            _detail('Tiempo productivo acumulado',
+                _duration(totalProductive)),
+            _detail('Días con actividad', '$activeDays'),
+            Text(
+              'Los récords se calculan únicamente con los días que tienen datos guardados.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _weeklyOverview(BuildContext context, Map<String, dynamic> data) {
