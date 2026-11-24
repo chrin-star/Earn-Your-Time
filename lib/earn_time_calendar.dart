@@ -143,6 +143,7 @@ class _EarnTimeCalendarViewState extends State<EarnTimeCalendarView> {
             const SizedBox(height: 12),
             _monthlyOverview(context, data),
             const SizedBox(height: 12),
+            _personalRecords(context, data),
             const SizedBox(height: 16),
             Card(
               child: Padding(
