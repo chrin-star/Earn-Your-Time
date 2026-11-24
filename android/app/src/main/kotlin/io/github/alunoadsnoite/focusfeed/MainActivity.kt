@@ -245,28 +245,42 @@ class MainActivity : FlutterActivity() {
         backupPrefs.forEach { name ->
             val values = JSONObject()
             getSharedPreferences(name, MODE_PRIVATE).all.forEach { (key, value) ->
-                values.put(key, if (value is Set<*>) JSONArray(value.filterIsInstance<String>()) else value)
+                val entry = JSONObject()
+                when (value) {
+                    is String -> entry.put("type", "string").put("value", value)
+                    is Boolean -> entry.put("type", "boolean").put("value", value)
+                    is Int -> entry.put("type", "int").put("value", value)
+                    is Long -> entry.put("type", "long").put("value", value.toString())
+                    is Float -> entry.put("type", "float").put("value", value.toDouble())
+                    is Set<*> -> entry.put("type", "stringSet").put("value", JSONArray(value.filterIsInstance<String>()))
+                    else -> throw IllegalStateException("Tipo de dato no compatible en la copia.")
+                }
+                values.put(key, entry)
             }
             prefs.put(name, values)
         }
-        return JSONObject().put("format", "earn-your-time-backup").put("version", 1).put("preferences", prefs)
+        return JSONObject().put("format", "earn-your-time-backup").put("version", 2).put("preferences", prefs)
     }
 
     private fun restoreJson(root: JSONObject) {
-        require(root.optString("format") == "earn-your-time-backup" && root.optInt("version") == 1) { "Archivo incompatible." }
+        require(root.optString("format") == "earn-your-time-backup" && root.optInt("version") == 2) { "Archivo incompatible o de una versión anterior." }
         val all = root.getJSONObject("preferences")
         backupPrefs.forEach { name ->
             val values = all.getJSONObject(name)
             val editor = getSharedPreferences(name, MODE_PRIVATE).edit().clear()
             values.keys().forEach { key ->
-                val value = values.get(key)
-                when (value) {
-                    is String -> editor.putString(key, value)
-                    is Boolean -> editor.putBoolean(key, value)
-                    is Int -> editor.putInt(key, value)
-                    is Long -> editor.putLong(key, value)
-                    is Double -> editor.putFloat(key, value.toFloat())
-                    is JSONArray -> editor.putStringSet(key, (0 until value.length()).map { value.getString(it) }.toSet())
+                val entry = values.getJSONObject(key)
+                when (entry.getString("type")) {
+                    "string" -> editor.putString(key, entry.getString("value"))
+                    "boolean" -> editor.putBoolean(key, entry.getBoolean("value"))
+                    "int" -> editor.putInt(key, entry.getInt("value"))
+                    "long" -> editor.putLong(key, entry.getString("value").toLong())
+                    "float" -> editor.putFloat(key, entry.getDouble("value").toFloat())
+                    "stringSet" -> {
+                        val array = entry.getJSONArray("value")
+                        editor.putStringSet(key, (0 until array.length()).map { array.getString(it) }.toSet())
+                    }
+                    else -> error("Tipo de dato desconocido en la copia.")
                 }
             }
             check(editor.commit()) { "No se pudo restaurar " + name }
