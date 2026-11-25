@@ -43,7 +43,7 @@ class _EarnYourVineViewState extends State<EarnYourVineView> {
     final next = _nextMilestone(hours);
     final remaining = next == null ? null : ((next - hours) * 3600).ceil();
     final worldHeight = (760 + (100 + math.sqrt(hours) * 155) * 1.35)
-        .clamp(760.0, 5600.0);
+        .clamp(760.0, 5600.0).toDouble();
     return Column(
       children: [
         Padding(
@@ -238,11 +238,7 @@ class _VineWorldPainter extends CustomPainter {
 
   Color _mix(Color a, Color b, double t) => Color.lerp(a, b, t.clamp(0.0, 1.0))!;
 
-  Color _skyColor(int stop, double progress) {
-    final a = _palettes[stop][0];
-    final b = _palettes[stop + 1][0];
-    return _mix(a, b, progress);
-  }
+
 
   void _fill(Canvas c, Rect r, Color color) {
     _p..shader = null..color = color..style = PaintingStyle.fill;
@@ -264,9 +260,9 @@ class _VineWorldPainter extends CustomPainter {
     final width = size.width;
     final height = size.height;
     final baseY = height - 118.0;
-    final growth = (105 + math.sqrt(hours) * 155).clamp(105.0, height - 260);
+    final growth = (105 + math.sqrt(hours) * 155).clamp(105.0, height - 260).toDouble();
     final tipY = baseY - growth;
-    final stageIndex = _milestones.lastIndexWhere((v) => hours >= v).clamp(0, 5);
+    final stageIndex = _milestones.lastIndexWhere((v) => hours >= v).clamp(0, 5).toInt();
     final span = _milestones[stageIndex + 1] - _milestones[stageIndex];
     final blend = ((hours - _milestones[stageIndex]) / span).clamp(0.0, 1.0);
 
