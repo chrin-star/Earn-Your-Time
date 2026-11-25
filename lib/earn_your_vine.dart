@@ -286,6 +286,64 @@ class _VineWorldPainter extends CustomPainter {
     c.restore();
   }
 
+  void _drawFlower(Canvas c, Offset center, double scale, int variant) {
+    c.save();
+    c.translate(center.dx, center.dy);
+    final petal = variant.isEven
+        ? const Color(0xFFFFE9F0)
+        : const Color(0xFFFFDDA0);
+    for (int p = 0; p < 5; p++) {
+      final angle = p * math.pi * 2 / 5;
+      c.save();
+      c.rotate(angle);
+      _oval(c, Rect.fromCenter(
+        center: Offset(0, -7 * scale),
+        width: 7 * scale, height: 11 * scale,
+      ), petal);
+      c.restore();
+    }
+    _oval(c, Rect.fromCircle(
+      center: Offset.zero, radius: 3.6 * scale,
+    ), const Color(0xFFFFC83D));
+    c.restore();
+  }
+
+  void _drawFruit(Canvas c, Offset center, double scale, int kind) {
+    final colors = [
+      const Color(0xFFD94B43), // apple
+      const Color(0xFFFFB36B), // peach
+      const Color(0xFFE9C84C), // golden pear
+      const Color(0xFF9D75D6), // star fruit / exotic fruit
+    ];
+    final color = colors[kind.clamp(0, colors.length - 1)];
+    c.save();
+    c.translate(center.dx, center.dy);
+    _paint
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.2 * scale
+      ..strokeCap = StrokeCap.round
+      ..color = const Color(0xFF76513A);
+    c.drawLine(Offset(0, -5 * scale), Offset(1 * scale, -11 * scale), _paint);
+    _paint
+      ..style = PaintingStyle.fill
+      ..color = const Color(0xFF64A957);
+    final leaf = Path()
+      ..moveTo(0, -8 * scale)
+      ..quadraticBezierTo(8 * scale, -15 * scale, 10 * scale, -7 * scale)
+      ..quadraticBezierTo(5 * scale, -3 * scale, 0, -8 * scale)
+      ..close();
+    c.drawPath(leaf, _paint);
+    _oval(c, Rect.fromCenter(
+      center: Offset.zero,
+      width: (kind == 2 ? 13 : 15) * scale,
+      height: (kind == 2 ? 19 : 15) * scale,
+    ), color);
+    _oval(c, Rect.fromCircle(
+      center: Offset(-3 * scale, -3 * scale), radius: 2 * scale,
+    ), const Color(0x66FFFFFF));
+    c.restore();
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
@@ -522,9 +580,26 @@ class _VineWorldPainter extends CustomPainter {
         _drawLeaf(canvas, Offset(x - side * 8, y - 5),
             -side * 2.1, .92, color: const Color(0xFF9BD77C));
       }
-      if (i % 9 == 4 && hours >= 160) {
-        _oval(canvas, Rect.fromLTWH(x + side * reach, y - 84, 17, 17),
-            const Color(0xFFFFD77C));
+      // Blossoms arrive first and spread gradually through the older branches.
+      if (hours >= 80 && i % 4 == 1) {
+        _drawFlower(canvas,
+            Offset(x + side * reach * .96, y - 83),
+            hours >= 160 ? 1.0 : .78, i);
+      }
+
+      // Fruits appear in successive families, never all at the same time.
+      // A few branches bear each new fruit type while flowers remain elsewhere.
+      if (hours >= 160 && i % 7 == 3) {
+        _drawFruit(canvas, Offset(x + side * reach * .98, y - 87), .88, 0);
+      }
+      if (hours >= 300 && i % 11 == 5) {
+        _drawFruit(canvas, Offset(x + side * reach * .98, y - 88), .94, 1);
+      }
+      if (hours >= 500 && i % 13 == 7) {
+        _drawFruit(canvas, Offset(x + side * reach * .98, y - 88), 1.0, 2);
+      }
+      if (hours >= 800 && i % 17 == 9) {
+        _drawFruit(canvas, Offset(x + side * reach * .98, y - 89), 1.04, 3);
       }
     }
 
