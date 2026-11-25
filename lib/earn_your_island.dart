@@ -13,7 +13,7 @@ class EarnYourIslandView extends StatefulWidget {
 class _EarnYourIslandViewState extends State<EarnYourIslandView> {
   static const _channel = MethodChannel('focusfeed/island');
   int coins=40, energy=0, claimed=0, lastIncome=DateTime.now().millisecondsSinceEpoch;
-  int land=1, houses=0, trees=1;
+  int land=1, houses=0, trees=1, layout=0;
   List<String> residents=[];
   static const _characters = <String, Map<String, Object>>{
     'luma': {'name': 'Luma', 'role': 'Exploradora', 'price': 60, 'color': 0xFFE8A85B, 'icon': 'explore'},
@@ -36,14 +36,14 @@ class _EarnYourIslandViewState extends State<EarnYourIslandView> {
       if(raw!=null){final d=jsonDecode(raw) as Map<String,dynamic>;
         coins=(d['coins'] as num?)?.toInt()??0; energy=(d['energy'] as num?)?.toInt()??0;
         claimed=(d['claimed'] as num?)?.toInt()??0; lastIncome=(d['lastIncome'] as num?)?.toInt()??lastIncome;
-        land=(d['land'] as num?)?.toInt()??1; houses=(d['houses'] as num?)?.toInt()??0; trees=(d['trees'] as num?)?.toInt()??1;
+        land=(d['land'] as num?)?.toInt()??1; houses=(d['houses'] as num?)?.toInt()??0; trees=(d['trees'] as num?)?.toInt()??1; layout=((d['layout'] as num?)?.toInt()??0).clamp(0,2);
         residents=(d['residents'] as List<dynamic>?)?.whereType<String>().toSet().toList()??[];
       }
     } catch (_) {}
     if(!mounted)return;setState(()=>loaded=true);await _tick();await _claim();
   }
   Future<void> _save() async {
-    try {await _channel.invokeMethod<void>('save',{'state':jsonEncode({'coins':coins,'energy':energy,'claimed':claimed,'lastIncome':lastIncome,'land':land,'houses':houses,'trees':trees,'residents':residents})});}
+    try {await _channel.invokeMethod<void>('save',{'state':jsonEncode({'coins':coins,'energy':energy,'claimed':claimed,'lastIncome':lastIncome,'land':land,'houses':houses,'trees':trees,'layout':layout,'residents':residents})});}
     catch(_){if(mounted)_msg('No se pudo guardar la isla.');}
   }
   Future<void> _tick() async {
@@ -57,7 +57,7 @@ class _EarnYourIslandViewState extends State<EarnYourIslandView> {
     if(diff<300)return;final units=diff~/300;
     setState((){energy+=units;claimed+=units*300;});await _save();
   }
-  void _msg(String s)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s)));
+  Future<void> _changeLayout() async { if(busy)return; setState(()=>layout=(layout+1)%3); await _save(); _msg('Distribución de la isla actualizada.'); }\n  void _msg(String s)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s)));
   Future<void> _buy(String type) async {
     if(busy)return;String? error;
     setState(()=>busy=true);
@@ -89,8 +89,8 @@ class _EarnYourIslandViewState extends State<EarnYourIslandView> {
         Expanded(child:_resource(context,'Energía',energy.toString(),Icons.bolt_rounded,const Color(0xFF42B9C5))),
       ]),
       const SizedBox(height:14),
-      AspectRatio(aspectRatio:1.22,child:ClipRRect(borderRadius:BorderRadius.circular(24),child:CustomPaint(painter:_IslandPainter(land,houses,trees,residents.length),child:const SizedBox.expand()))),
-      Center(child:Text('Zona $land · $houses casas · $trees árboles · ${residents.length} habitantes',style:t.textTheme.labelLarge?.copyWith(color:c.onSurfaceVariant))),
+      AspectRatio(aspectRatio:1.22,child:ClipRRect(borderRadius:BorderRadius.circular(24),child:CustomPaint(painter:_IslandPainter(land,houses,trees,residents.length,layout),child:const SizedBox.expand()))),
+      Center(child:Text('Zona $land · $houses casas · $trees árboles · ${residents.length} habitantes',style:t.textTheme.labelLarge?.copyWith(color:c.onSurfaceVariant))),\n      const SizedBox(height:7),\n      Center(child:OutlinedButton.icon(onPressed:busy?_noop:null, icon:const Icon(Icons.swap_horiz_rounded), label:const Text('Cambiar distribución'))),
       const SizedBox(height:14),
       Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
         Text('Haz crecer tu isla',style:t.textTheme.titleLarge?.copyWith(fontWeight:FontWeight.w800)),
@@ -119,7 +119,7 @@ class _EarnYourIslandViewState extends State<EarnYourIslandView> {
       Text('1 energía por cada 5 minutos productivos · Producción offline limitada a 8 horas',textAlign:TextAlign.center,style:t.textTheme.labelSmall?.copyWith(color:c.onSurfaceVariant)),
     ]);
   }
-  Widget _resource(BuildContext context,String label,String value,IconData icon,Color color)=>Card(child:Padding(padding:const EdgeInsets.all(12),child:Row(children:[
+  void _noop() => _changeLayout();\n  Widget _resource(BuildContext context,String label,String value,IconData icon,Color color)=>Card(child:Padding(padding:const EdgeInsets.all(12),child:Row(children:[
     Container(width:38,height:38,decoration:BoxDecoration(color:color.withValues(alpha:.18),borderRadius:BorderRadius.circular(13)),child:Icon(icon,color:color)),
     const SizedBox(width:9),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(label,style:Theme.of(context).textTheme.labelMedium),Text(value,style:Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight:FontWeight.w900))])),
   ])));
@@ -131,8 +131,8 @@ class _EarnYourIslandViewState extends State<EarnYourIslandView> {
 }
 
 class _IslandPainter extends CustomPainter{
-  _IslandPainter(this.land,this.houses,this.trees,this.residentCount);
-  final int land,houses,trees,residentCount;
+  _IslandPainter(this.land,this.houses,this.trees,this.residentCount,this.layout);
+  final int land,houses,trees,residentCount,layout;\n  Offset _arrange(Offset o,double cx,double cy){final x=o.dx-cx,y=o.dy-cy;switch(layout){case 1:return Offset(cx-y,cy+x);case 2:return Offset(cx-x,cy-y);default:return o;}}
   @override
   void paint(Canvas canvas,Size size){
     canvas.drawRect(Offset.zero&size,Paint()..color=const Color(0xFF75D5D5));
@@ -145,13 +145,13 @@ class _IslandPainter extends CustomPainter{
     canvas.drawPath(p,Paint()..color=const Color(0xFF83C96A));
     final tree=Paint()..color=const Color(0xFF4D9B57);
     final spots=<Offset>[Offset(cx-r*.48,cy-r*.38),Offset(cx+r*.52,cy-r*.35),Offset(cx-r*.55,cy+r*.35),Offset(cx+r*.5,cy+r*.35),Offset(cx,cy-r*.58),Offset(cx,cy+r*.58)];
-    for(int i=0;i<trees.clamp(0,spots.length);i++){final o=spots[i];canvas.drawRect(Rect.fromCenter(center:o,width:u,height:u*.8),tree);canvas.drawRect(Rect.fromLTWH(o.dx-u*.08,o.dy+u*.25,u*.16,u*.4),Paint()..color=const Color(0xFF9B653C));}
+    for(int i=0;i<trees.clamp(0,spots.length);i++){final o=_arrange(spots[i],cx,cy);canvas.drawRect(Rect.fromCenter(center:o,width:u,height:u*.8),tree);canvas.drawRect(Rect.fromLTWH(o.dx-u*.08,o.dy+u*.25,u*.16,u*.4),Paint()..color=const Color(0xFF9B653C));}
     final homes=<Offset>[Offset(cx,cy-u*.35),Offset(cx+r*.32,cy+r*.2),Offset(cx-r*.32,cy+r*.2),Offset(cx,cy+r*.55)];
-    for(int i=0;i<houses.clamp(0,homes.length);i++){final o=homes[i];canvas.drawRect(Rect.fromCenter(center:Offset(o.dx,o.dy+u*.2),width:u*1.25,height:u*.85),Paint()..color=const Color(0xFFFFE4A8));final roof=Path()..moveTo(o.dx-u*.75,o.dy)..lineTo(o.dx,o.dy-u*.65)..lineTo(o.dx+u*.75,o.dy)..close();canvas.drawPath(roof,Paint()..color=const Color(0xFFD96D57));}
+    for(int i=0;i<houses.clamp(0,homes.length);i++){final o=_arrange(homes[i],cx,cy);canvas.drawRect(Rect.fromCenter(center:Offset(o.dx,o.dy+u*.2),width:u*1.25,height:u*.85),Paint()..color=const Color(0xFFFFE4A8));final roof=Path()..moveTo(o.dx-u*.75,o.dy)..lineTo(o.dx,o.dy-u*.65)..lineTo(o.dx+u*.75,o.dy)..close();canvas.drawPath(roof,Paint()..color=const Color(0xFFD96D57));}
     final residentSpots=<Offset>[Offset(cx-u*1.35,cy-u*.1),Offset(cx+u*1.35,cy-u*.05),Offset(cx,cy+u*1.15)];
     final residentColors=<Color>[const Color(0xFFE8A85B),const Color(0xFF65AD72),const Color(0xFF719ED8)];
     for(int i=0;i<residentCount.clamp(0,residentSpots.length);i++){
-      final o=residentSpots[i];final color=residentColors[i];
+      final o=_arrange(residentSpots[i],cx,cy);final color=residentColors[i];
       canvas.drawRect(Rect.fromCenter(center:Offset(o.dx,o.dy+u*.2),width:u*.48,height:u*.48),Paint()..color=color);
       canvas.drawRect(Rect.fromCenter(center:Offset(o.dx,o.dy-u*.16),width:u*.32,height:u*.32),Paint()..color=const Color(0xFFFFD4AD));
       canvas.drawRect(Rect.fromLTWH(o.dx-u*.2,o.dy-u*.35,u*.4,u*.1),Paint()..color=const Color(0xFF594B45));
@@ -159,5 +159,5 @@ class _IslandPainter extends CustomPainter{
     for(int i=0;i<9;i++){final x=cx+((i*31)%11-5)*u*.45,y=cy+((i*19)%9-4)*u*.4;canvas.drawRect(Rect.fromLTWH(x,y,u*.13,u*.13),Paint()..color=i.isEven?const Color(0xFFFFE78A):const Color(0xFFFFA6B7));}
   }
   @override
-  bool shouldRepaint(covariant _IslandPainter old)=>old.land!=land||old.houses!=houses||old.trees!=trees||old.residentCount!=residentCount;
+  bool shouldRepaint(covariant _IslandPainter old)=>old.land!=land||old.houses!=houses||old.trees!=trees||old.residentCount!=residentCount||old.layout!=layout;
 }
