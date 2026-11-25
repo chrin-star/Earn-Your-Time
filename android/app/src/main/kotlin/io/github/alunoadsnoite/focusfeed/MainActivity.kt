@@ -100,6 +100,17 @@ class MainActivity : FlutterActivity() {
                             awaitMonitorState(false, result)
                             return@setMethodCallHandler
                         }
+                        "loadVineShop" -> {
+                            val progress = getSharedPreferences("focusfeed_progress", MODE_PRIVATE)
+                            result.success(progress.getString("earn_your_vine_shop", "{}") ?: "{}")
+                        }
+                        "saveVineShop" -> {
+                            val state = call.argument<String>("state") ?: "{}"
+                            JSONObject(state)
+                            getSharedPreferences("focusfeed_progress", MODE_PRIVATE)
+                                .edit().putString("earn_your_vine_shop", state).apply()
+                            result.success(true)
+                        }
                         "status" -> result.success(
                             EarnTimeStore.snapshot(this) + mapOf("monitorRunning" to EarnTimeMonitorService.running,
                                 "usagePermission" to NativeAccess.usage(this),
