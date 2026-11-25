@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 class EarnYourVineView extends StatefulWidget {
   const EarnYourVineView({super.key, required this.productiveSeconds});
@@ -12,6 +15,147 @@ class EarnYourVineView extends StatefulWidget {
 class _EarnYourVineViewState extends State<EarnYourVineView> {
   final ScrollController _scroll = ScrollController();
   bool _firstLayout = true;
+  final Set<String> _ownedItems = <String>{};
+  int _spentCoins = 0;
+  bool _shopLoaded = false;
+  static const MethodChannel _shopChannel = MethodChannel('focusfeed/earn_time');
+  static const List<Map<String, Object>> _shopItems = [
+    {'id': 'pink_blossoms', 'name': 'Flores rosadas', 'description': 'Una variante delicada para las flores de tu enredadera.', 'price': 3, 'icon': Icons.local_florist_rounded},
+    {'id': 'blue_blossoms', 'name': 'Flores azules', 'description': 'Flores de tonos azules para las ramas maduras.', 'price': 4, 'icon': Icons.spa_rounded},
+    {'id': 'butterflies', 'name': 'Mariposas', 'description': 'Pequeñas mariposas que visitan las ramas con flores.', 'price': 6, 'icon': Icons.flutter_dash_rounded},
+    {'id': 'glowing_fruit', 'name': 'Frutos luminosos', 'description': 'Un brillo sutil alrededor de los frutos que vayan apareciendo.', 'price': 8, 'icon': Icons.auto_awesome_rounded},
+  ];
+
+  int get _earnedCoins => widget.productiveSeconds ~/ 600;
+  int get _coinBalance => math.max(0, _earnedCoins - _spentCoins);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadShop();
+  }
+
+  Future<void> _loadShop() async {
+    try {
+      final raw = await _shopChannel.invokeMethod<String>('loadVineShop');
+      final data = jsonDecode(raw ?? '{}') as Map<String, dynamic>;
+      if (!mounted) return;
+      setState(() {
+        _spentCoins = (data['spentCoins'] as num?)?.toInt() ?? 0;
+        _ownedItems
+          ..clear()
+          ..addAll((data['ownedItems'] as List<dynamic>? ?? const []).whereType<String>());
+        _shopLoaded = true;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _shopLoaded = true);
+    }
+  }
+
+  Future<bool> _saveShop(Set<String> owned, int spent) async {
+    try {
+      final ok = await _shopChannel.invokeMethod<bool>('saveVineShop', {
+        'state': jsonEncode({'spentCoins': spent, 'ownedItems': owned.toList()}),
+      });
+      return ok == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _buyShopItem(Map<String, Object> item, StateSetter refreshSheet) async {
+    final id = item['id']! as String;
+    final price = item['price']! as int;
+    if (_ownedItems.contains(id) || _coinBalance < price) return;
+    final nextOwned = Set<String>.from(_ownedItems)..add(id);
+    final nextSpent = _spentCoins + price;
+    final saved = await _saveShop(nextOwned, nextSpent);
+    if (!mounted) return;
+    if (!saved) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo guardar la compra. Inténtalo de nuevo.')),
+      );
+      return;
+    }
+    setState(() {
+      _ownedItems
+        ..clear()
+        ..addAll(nextOwned);
+      _spentCoins = nextSpent;
+    });
+    refreshSheet(() {});
+  }
+
+  void _openShop() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, refreshSheet) => SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(20, 18, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * .72),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Expanded(child: Text('Tienda de la enredadera', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800))),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer, borderRadius: BorderRadius.circular(16)),
+                      child: Row(children: [const Icon(Icons.toll_rounded, size: 18), const SizedBox(width: 6), Text('$_coinBalance', style: const TextStyle(fontWeight: FontWeight.w800))]),
+                    ),
+                  ]),
+                  const SizedBox(height: 6),
+                  Text('Ganas 1 moneda por cada 10 minutos productivos. El tiempo inactivo no genera monedas.', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                  const SizedBox(height: 14),
+                  Flexible(child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: _shopItems.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 9),
+                    itemBuilder: (context, index) {
+                      final item = _shopItems[index];
+                      final id = item['id']! as String;
+                      final price = item['price']! as int;
+                      final owned = _ownedItems.contains(id);
+                      final canBuy = _coinBalance >= price && !owned && _shopLoaded;
+                      return Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: .55), borderRadius: BorderRadius.circular(17)),
+                        child: Row(children: [
+                          Container(width: 44, height: 44, decoration: BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer, borderRadius: BorderRadius.circular(14)), child: Icon(item['icon']! as IconData, color: Theme.of(context).colorScheme.primary)),
+                          const SizedBox(width: 12),
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(item['name']! as String, style: const TextStyle(fontWeight: FontWeight.w700)),
+                            const SizedBox(height: 2),
+                            Text(item['description']! as String, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                          ])),
+                          const SizedBox(width: 8),
+                          if (owned)
+                            const Icon(Icons.check_circle_rounded, color: Color(0xFF45A66A))
+                          else
+                            FilledButton.tonal(
+                              onPressed: canBuy ? () => _buyShopItem(item, refreshSheet) : null,
+                              child: Text('$price  •'),
+                            ),
+                        ]),
+                      );
+                    },
+                  )),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   void didUpdateWidget(covariant EarnYourVineView oldWidget) {
@@ -65,6 +209,27 @@ class _EarnYourVineViewState extends State<EarnYourVineView> {
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
+              Material(
+                color: Theme.of(context).colorScheme.secondaryContainer,
+                borderRadius: BorderRadius.circular(15),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(15),
+                  onTap: _openShop,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Row(mainAxisSize: MainAxisSize.min, children: [
+                        const Icon(Icons.storefront_rounded, size: 17),
+                        const SizedBox(width: 4),
+                        Text('$_coinBalance', style: const TextStyle(fontWeight: FontWeight.w800)),
+                      ]),
+                      Text('tienda', style: Theme.of(context).textTheme.labelSmall),
+                    ]),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 7),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                 decoration: BoxDecoration(
@@ -97,6 +262,7 @@ class _EarnYourVineViewState extends State<EarnYourVineView> {
                   final painter = _VineWorldPainter(
                     hours: hours,
                     growth: growth,
+                    ownedItems: _ownedItems,
                   );
                   final world = SizedBox(
                     width: constraints.maxWidth,
@@ -229,9 +395,10 @@ double _vineGrowth(int productiveSeconds) {
 }
 
 class _VineWorldPainter extends CustomPainter {
-  _VineWorldPainter({required this.hours, required this.growth});
+  _VineWorldPainter({required this.hours, required this.growth, required this.ownedItems});
   final double hours;
   final double growth;
+  final Set<String> ownedItems;
   final Paint _paint = Paint()..isAntiAlias = true;
 
   static const _milestones = [0.0, 1.0, 4.0, 12.0, 30.0, 80.0, 160.0, 300.0, 600.0, 1000.0];
@@ -289,9 +456,13 @@ class _VineWorldPainter extends CustomPainter {
   void _drawFlower(Canvas c, Offset center, double scale, int variant) {
     c.save();
     c.translate(center.dx, center.dy);
-    final petal = variant.isEven
-        ? const Color(0xFFFFE9F0)
-        : const Color(0xFFFFDDA0);
+    final petal = ownedItems.contains('blue_blossoms')
+        ? const Color(0xFF9DCBFF)
+        : ownedItems.contains('pink_blossoms')
+            ? const Color(0xFFFFB6D0)
+            : variant.isEven
+                ? const Color(0xFFFFE9F0)
+                : const Color(0xFFFFDDA0);
     for (int p = 0; p < 5; p++) {
       final angle = p * math.pi * 2 / 5;
       c.save();
@@ -341,6 +512,9 @@ class _VineWorldPainter extends CustomPainter {
     _oval(c, Rect.fromCircle(
       center: Offset(-3 * scale, -3 * scale), radius: 2 * scale,
     ), const Color(0x66FFFFFF));
+    if (ownedItems.contains('glowing_fruit')) {
+      _oval(c, Rect.fromCircle(center: Offset.zero, radius: 12 * scale), const Color(0x33FFF4A8));
+    }
     c.restore();
   }
 
@@ -586,6 +760,14 @@ class _VineWorldPainter extends CustomPainter {
             Offset(x + side * reach * .96, y - 83),
             hours >= 160 ? 1.0 : .78, i);
       }
+      if (hours >= 80 && ownedItems.contains('butterflies') && i % 6 == 2) {
+        final flutter = Offset(x + side * reach * 1.08, y - 112);
+        _oval(canvas, Rect.fromCenter(center: flutter.translate(-4, 0), width: 9, height: 7), const Color(0xFFFFD36E));
+        _oval(canvas, Rect.fromCenter(center: flutter.translate(4, 0), width: 9, height: 7), const Color(0xFFFFA6C8));
+        _paint..color = const Color(0xFF5A4638)..strokeWidth = 1.4..style = PaintingStyle.stroke;
+        canvas.drawLine(flutter.translate(0, -3), flutter.translate(0, 4), _paint);
+        _paint.style = PaintingStyle.fill;
+      }
 
       // Fruits appear in successive families, never all at the same time.
       // A few branches bear each new fruit type while flowers remain elsewhere.
@@ -655,5 +837,5 @@ class _VineWorldPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _VineWorldPainter old) =>
-      old.hours != hours || old.growth != growth;
+      old.hours != hours || old.growth != growth || !setEquals(old.ownedItems, ownedItems);
 }
