@@ -118,7 +118,7 @@ class _EarnYourVineViewState extends State<EarnYourVineView> {
                   Flexible(child: ListView.separated(
                     shrinkWrap: true,
                     itemCount: _shopItems.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 9),
+                    separatorBuilder: (_, _) => const SizedBox(height: 9),
                     itemBuilder: (context, index) {
                       final item = _shopItems[index];
                       final id = item['id']! as String;
