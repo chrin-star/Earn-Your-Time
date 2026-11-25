@@ -392,21 +392,91 @@ class _VineWorldPainter extends CustomPainter {
         x1, y1,
       );
     }
+    // Layered stem shading: deep edge, living green body and a soft raised ridge.
+    // The stem becomes broader and more richly coloured as the plant matures.
+    final maturity = (hours / 80).clamp(0.0, 1.0);
+    final stemWidth = 25.0 + maturity * 19.0;
     _paint
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
-      ..color = const Color(0xFF174D3C)
-      ..strokeWidth = 43;
+      ..color = const Color(0xFF123F35)
+      ..strokeWidth = stemWidth + 12;
     canvas.drawPath(stem, _paint);
     _paint
-      ..color = const Color(0xFF348653)
-      ..strokeWidth = 34;
+      ..color = _mix(const Color(0xFF28764C), const Color(0xFF276344), maturity)
+      ..strokeWidth = stemWidth;
     canvas.drawPath(stem, _paint);
     _paint
-      ..color = const Color(0xFF69B96B)
-      ..strokeWidth = 12;
+      ..color = _mix(const Color(0xFF63B96B), const Color(0xFF4F9D5D), maturity)
+      ..strokeWidth = stemWidth * .57;
     canvas.drawPath(stem, _paint);
+
+    // A narrow off-centre highlight gives the stem a rounded, organic surface.
+    final ridge = Path();
+    for (int i = 0; i <= 80; i++) {
+      final t = i / 80;
+      final y = rootY - growth * t;
+      final x = w * .5 + math.sin(t * math.pi * 5.4) * w * .115;
+      final offset = math.sin(t * math.pi * 21) * 2.4;
+      final point = Offset(x - stemWidth * .13 + offset, y);
+      if (i == 0) {
+        ridge.moveTo(point.dx, point.dy);
+      } else {
+        ridge.lineTo(point.dx, point.dy);
+      }
+    }
+    _paint
+      ..color = const Color(0x668FE08A)
+      ..strokeWidth = math.max(2.5, stemWidth * .105)
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(ridge, _paint);
+
+    // Fine longitudinal grooves and subtle growth nodes break up the smooth tube.
+    final groove = Path();
+    for (int i = 0; i <= 80; i++) {
+      final t = i / 80;
+      final y = rootY - growth * t;
+      final x = w * .5 + math.sin(t * math.pi * 5.4) * w * .115;
+      final offset = math.sin(t * math.pi * 21 + 1.2) * 2.0;
+      final point = Offset(x + stemWidth * .20 + offset, y);
+      if (i == 0) {
+        groove.moveTo(point.dx, point.dy);
+      } else {
+        groove.lineTo(point.dx, point.dy);
+      }
+    }
+    _paint
+      ..color = const Color(0x44305C3E)
+      ..strokeWidth = math.max(1.8, stemWidth * .07);
+    canvas.drawPath(groove, _paint);
+
+    // Small raised nodes appear at intervals along the vine, like real stem joints.
+    final nodeCount = (growth / 185).floor().clamp(1, 120);
+    for (int i = 1; i <= nodeCount; i++) {
+      final t = i / (nodeCount + 1);
+      final y = rootY - growth * t;
+      final x = w * .5 + math.sin(t * math.pi * 5.4) * w * .115;
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate(math.cos(t * math.pi * 5.4) * .28);
+      _paint
+        ..color = const Color(0x55305C3E)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = math.max(2.0, stemWidth * .10);
+      canvas.drawArc(
+        Rect.fromCenter(center: Offset.zero, width: stemWidth * .78, height: 9),
+        .12, math.pi - .24, false, _paint,
+      );
+      _paint
+        ..color = const Color(0x448FE08A)
+        ..strokeWidth = math.max(1.5, stemWidth * .055);
+      canvas.drawArc(
+        Rect.fromCenter(center: Offset(0, -2), width: stemWidth * .58, height: 5),
+        .15, math.pi - .3, false, _paint,
+      );
+      canvas.restore();
+    }
     _paint.style = PaintingStyle.fill;
 
     // Large side branches and paired leaves, spaced along the full plant.
