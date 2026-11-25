@@ -49,25 +49,10 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "focusfeed/island")
-            .setMethodCallHandler { call, result ->
-                try {
-                    val prefs = getSharedPreferences("focusfeed_progress", MODE_PRIVATE)
-                    when (call.method) {
-                        "load" -> result.success(prefs.getString("earn_your_island_state", null))
-                        "save" -> {
-                            val state = call.argument<String>("state") ?: error("Datos de isla ausentes")
-                            // Validate JSON before committing; this preference file is included in backups.
-                            JSONObject(state)
-                            prefs.edit().putString("earn_your_island_state", state).commit()
-                            result.success(null)
-                        }
-                        else -> result.notImplemented()
-                    }
-                } catch (error: Exception) {
-                    result.error("island_storage", error.message ?: "No se pudo guardar la isla.", null)
-                }
-            }
+        // Remove the retired island economy data. The new vine is derived directly
+        // from lifetime productive time, so it needs no separate saved state.
+        getSharedPreferences("focusfeed_progress", MODE_PRIVATE)
+            .edit().remove("earn_your_island_state").apply()
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "focusfeed/earn_time")
             .setMethodCallHandler { call, result ->
                 try {
