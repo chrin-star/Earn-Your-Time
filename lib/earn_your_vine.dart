@@ -262,7 +262,7 @@ class _EarnYourVineViewState extends State<EarnYourVineView> {
                   final painter = _VineWorldPainter(
                     hours: hours,
                     growth: growth,
-                    ownedItems: _ownedItems,
+                    ownedItems: Set<String>.unmodifiable(_ownedItems),
                   );
                   final world = SizedBox(
                     width: constraints.maxWidth,
