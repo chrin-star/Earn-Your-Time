@@ -43,6 +43,14 @@ class EarnTimeController extends ChangeNotifier {
   bool get overlayPermission => data['overlayPermission'] == true;
   int value(String key, [int fallback = 0]) =>
       (data[key] as num?)?.toInt() ?? fallback;
+  int get totalProductiveSeconds {
+    final records = (data['history'] as List?) ?? const [];
+    final previous = records.whereType<Map>().fold<int>(
+      0,
+      (sum, item) => sum + ((item['productiveSeconds'] as num?)?.toInt() ?? 0),
+    );
+    return previous + value('productiveSeconds');
+  }
   Set<String> packages(String key) =>
       Set<String>.from((data[key] as List?) ?? const <String>[]);
 
