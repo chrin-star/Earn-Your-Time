@@ -12,9 +12,6 @@ class EarnYourVineView extends StatefulWidget {
 class _EarnYourVineViewState extends State<EarnYourVineView> {
   final ScrollController _scroll = ScrollController();
   bool _firstLayout = true;
-  double _lastViewportHeight = 420;
-  double _lastWorldHeight = 900;
-  double _lastHours = 0;
 
   @override
   void didUpdateWidget(covariant EarnYourVineView oldWidget) {
@@ -96,10 +93,7 @@ class _EarnYourVineViewState extends State<EarnYourVineView> {
               borderRadius: BorderRadius.circular(26),
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  _lastViewportHeight = constraints.maxHeight;
-                  final worldHeight = math.max(constraints.maxHeight, growth + 160);
-                  _lastWorldHeight = worldHeight;
-                  _lastHours = hours;
+                  final worldHeight = math.max(constraints.maxHeight, growth + 160).toDouble();
                   final painter = _VineWorldPainter(
                     hours: hours,
                     growth: growth,
@@ -267,7 +261,7 @@ class _VineWorldPainter extends CustomPainter {
     final leaf = Path()
       ..moveTo(0, 0)
       ..quadraticBezierTo(12 * scale, -22 * scale, 43 * scale, -17 * scale)
-      ..quadraticBezierTo(39 * scale, 7 * scale, 0, 0
+      ..quadraticBezierTo(39 * scale, 7 * scale, 0, 0)
       ..close();
     _paint
       ..shader = null
@@ -292,7 +286,7 @@ class _VineWorldPainter extends CustomPainter {
     final h = size.height;
     final rootY = h - 86.0;
     final tipY = rootY - growth;
-    final stage = _milestones.lastIndexWhere((v) => hours >= v).clamp(0, 5);
+    final stage = _milestones.lastIndexWhere((v) => hours >= v).clamp(0, 5).toInt();
     final span = _milestones[stage + 1] - _milestones[stage];
     final blend = ((hours - _milestones[stage]) / span).clamp(0.0, 1.0);
     final top = _mix(_sky[stage][0], _sky[stage + 1][0], blend);
