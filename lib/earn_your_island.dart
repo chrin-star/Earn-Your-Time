@@ -57,7 +57,8 @@ class _EarnYourIslandViewState extends State<EarnYourIslandView> {
     if(diff<300)return;final units=diff~/300;
     setState((){energy+=units;claimed+=units*300;});await _save();
   }
-  Future<void> _changeLayout() async { if(busy)return; setState(()=>layout=(layout+1)%3); await _save(); _msg('Distribución de la isla actualizada.'); }\n  void _msg(String s)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s)));
+  Future<void> _changeLayout() async { if(busy)return; setState(()=>layout=(layout+1)%3); await _save(); _msg('Distribución de la isla actualizada.'); }
+  void _msg(String s)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s)));
   Future<void> _buy(String type) async {
     if(busy)return;String? error;
     setState(()=>busy=true);
@@ -90,7 +91,9 @@ class _EarnYourIslandViewState extends State<EarnYourIslandView> {
       ]),
       const SizedBox(height:14),
       AspectRatio(aspectRatio:1.22,child:ClipRRect(borderRadius:BorderRadius.circular(24),child:CustomPaint(painter:_IslandPainter(land,houses,trees,residents.length,layout),child:const SizedBox.expand()))),
-      Center(child:Text('Zona $land · $houses casas · $trees árboles · ${residents.length} habitantes',style:t.textTheme.labelLarge?.copyWith(color:c.onSurfaceVariant))),\n      const SizedBox(height:7),\n      Center(child:OutlinedButton.icon(onPressed:busy?_noop:null, icon:const Icon(Icons.swap_horiz_rounded), label:const Text('Cambiar distribución'))),
+      Center(child:Text('Zona $land · $houses casas · $trees árboles · ${residents.length} habitantes',style:t.textTheme.labelLarge?.copyWith(color:c.onSurfaceVariant))),
+      const SizedBox(height:7),
+      Center(child:OutlinedButton.icon(onPressed:busy?_noop:null, icon:const Icon(Icons.swap_horiz_rounded), label:const Text('Cambiar distribución'))),
       const SizedBox(height:14),
       Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
         Text('Haz crecer tu isla',style:t.textTheme.titleLarge?.copyWith(fontWeight:FontWeight.w800)),
@@ -119,7 +122,8 @@ class _EarnYourIslandViewState extends State<EarnYourIslandView> {
       Text('1 energía por cada 5 minutos productivos · Producción offline limitada a 8 horas',textAlign:TextAlign.center,style:t.textTheme.labelSmall?.copyWith(color:c.onSurfaceVariant)),
     ]);
   }
-  void _noop() => _changeLayout();\n  Widget _resource(BuildContext context,String label,String value,IconData icon,Color color)=>Card(child:Padding(padding:const EdgeInsets.all(12),child:Row(children:[
+  void _noop() => _changeLayout();
+  Widget _resource(BuildContext context,String label,String value,IconData icon,Color color)=>Card(child:Padding(padding:const EdgeInsets.all(12),child:Row(children:[
     Container(width:38,height:38,decoration:BoxDecoration(color:color.withValues(alpha:.18),borderRadius:BorderRadius.circular(13)),child:Icon(icon,color:color)),
     const SizedBox(width:9),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(label,style:Theme.of(context).textTheme.labelMedium),Text(value,style:Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight:FontWeight.w900))])),
   ])));
@@ -132,7 +136,8 @@ class _EarnYourIslandViewState extends State<EarnYourIslandView> {
 
 class _IslandPainter extends CustomPainter{
   _IslandPainter(this.land,this.houses,this.trees,this.residentCount,this.layout);
-  final int land,houses,trees,residentCount,layout;\n  Offset _arrange(Offset o,double cx,double cy){final x=o.dx-cx,y=o.dy-cy;switch(layout){case 1:return Offset(cx-y,cy+x);case 2:return Offset(cx-x,cy-y);default:return o;}}
+  final int land,houses,trees,residentCount,layout;
+  Offset _arrange(Offset o,double cx,double cy){final x=o.dx-cx,y=o.dy-cy;switch(layout){case 1:return Offset(cx-y,cy+x);case 2:return Offset(cx-x,cy-y);default:return o;}}
   @override
   void paint(Canvas canvas,Size size){
     canvas.drawRect(Offset.zero&size,Paint()..color=const Color(0xFF75D5D5));
