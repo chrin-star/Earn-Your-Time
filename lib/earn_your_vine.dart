@@ -196,17 +196,20 @@ class _EarnYourVineViewState extends State<EarnYourVineView> {
   }
 
   static _VineStage _stageFor(double hours) {
-    if (hours < 2) return const _VineStage('Una nueva semilla', 'Todo comienza en la oscuridad');
-    if (hours < 8) return const _VineStage('El primer brote', 'La noche empieza a dar paso al amanecer');
-    if (hours < 25) return const _VineStage('El jardín despierta', 'La enredadera empieza a llenar de vida su mundo');
-    if (hours < 60) return const _VineStage('Por encima de las nubes', 'Tu planta alcanza nuevas alturas');
-    if (hours < 120) return const _VineStage('El cielo infinito', 'Cada vez más cerca de las estrellas');
-    if (hours < 250) return const _VineStage('Entre las estrellas', 'La enredadera ya toca el espacio');
-    return const _VineStage('Nuevos mundos', 'La aventura continúa más allá de los planetas');
+    if (hours < 1) return const _VineStage('Una nueva semilla', 'Todo comienza en la oscuridad');
+    if (hours < 4) return const _VineStage('El primer brote', 'Una pequeña señal de vida bajo la noche');
+    if (hours < 12) return const _VineStage('La primera luz', 'El horizonte comienza a iluminarse');
+    if (hours < 30) return const _VineStage('A la luz del día', 'La enredadera empieza a fortalecerse');
+    if (hours < 80) return const _VineStage('Una planta frondosa', 'Nuevas hojas empiezan a desplegarse');
+    if (hours < 160) return const _VineStage('Un jardín en las alturas', 'Aparecen flores y nueva vegetación');
+    if (hours < 300) return const _VineStage('Por encima de las nubes', 'El mundo queda cada vez más abajo');
+    if (hours < 600) return const _VineStage('Hacia las estrellas', 'La atmósfera comienza a quedar atrás');
+    if (hours < 1000) return const _VineStage('Entre las estrellas', 'La enredadera alcanza el espacio');
+    return const _VineStage('Nuevos mundos', 'La aventura continúa hacia otros planetas');
   }
 
   static double? _nextMilestone(double hours) {
-    for (final milestone in const [2.0, 8.0, 25.0, 60.0, 120.0, 250.0]) {
+    for (final milestone in const [1.0, 4.0, 12.0, 30.0, 80.0, 160.0, 300.0, 600.0, 1000.0]) {
       if (hours < milestone) return milestone;
     }
     return null;
@@ -231,14 +234,16 @@ class _VineWorldPainter extends CustomPainter {
   final double growth;
   final Paint _paint = Paint()..isAntiAlias = true;
 
-  static const _milestones = [0.0, 2.0, 8.0, 25.0, 60.0, 120.0, 250.0];
+  static const _milestones = [0.0, 1.0, 4.0, 12.0, 30.0, 80.0, 160.0, 300.0, 600.0, 1000.0];
   static const _sky = [
     [Color(0xFF101A38), Color(0xFF263B65)],
+    [Color(0xFF182443), Color(0xFF51466A)],
     [Color(0xFF493C68), Color(0xFFF3A06D)],
     [Color(0xFF72C8E8), Color(0xFFB8E9D1)],
     [Color(0xFF55A9D5), Color(0xFFB5E8F4)],
     [Color(0xFF276C9E), Color(0xFF173B70)],
     [Color(0xFF101A3D), Color(0xFF30245F)],
+    [Color(0xFF171A43), Color(0xFF523A79)],
     [Color(0xFF171A43), Color(0xFF523A79)],
   ];
 
@@ -302,7 +307,7 @@ class _VineWorldPainter extends CustomPainter {
 
     final random = math.Random(781);
     // The sky continues behind the entire climb, not just a small island.
-    if (hours < 8) {
+    if (hours < 4) {
       for (int i = 0; i < (h / 45).ceil().clamp(30, 500); i++) {
         final x = random.nextDouble() * w;
         final y = random.nextDouble() * h;
@@ -310,7 +315,7 @@ class _VineWorldPainter extends CustomPainter {
         _oval(canvas, Rect.fromCircle(center: Offset(x, y), radius: r),
             Colors.white.withValues(alpha: .3 + random.nextDouble() * .55));
       }
-      if (hours > 2) {
+      if (hours >= 1) {
         _oval(canvas, Rect.fromLTWH(w * .73, tipY + 160, 100, 100),
             const Color(0x55FFE7B2));
         _oval(canvas, Rect.fromLTWH(w * .76, tipY + 175, 68, 68),
@@ -323,7 +328,7 @@ class _VineWorldPainter extends CustomPainter {
           const Color(0xFFFFE7A3));
     }
 
-    if (hours >= 25) {
+    if (hours >= 80) {
       final cloudSpacing = 540.0;
       for (double y = tipY + 360; y < rootY; y += cloudSpacing) {
         final x = (math.sin(y / 700) * .25 + .5) * (w - 150);
@@ -336,7 +341,7 @@ class _VineWorldPainter extends CustomPainter {
       }
     }
 
-    if (hours >= 120) {
+    if (hours >= 600) {
       for (int i = 0; i < (h / 36).ceil().clamp(30, 600); i++) {
         final x = random.nextDouble() * w;
         final y = random.nextDouble() * h;
@@ -404,7 +409,15 @@ class _VineWorldPainter extends CustomPainter {
     _paint.style = PaintingStyle.fill;
 
     // Large side branches and paired leaves, spaced along the full plant.
-    final branchCount = (growth / 190).ceil().clamp(1, 220);
+    final branchCount = hours < 1
+        ? 0
+        : hours < 4
+            ? 1
+            : hours < 12
+                ? 2
+                : hours < 30
+                    ? 5
+                    : (math.sqrt(hours - 29) * 3).ceil().clamp(5, 220);
     for (int i = 0; i < branchCount; i++) {
       final t = (i + .5) / branchCount;
       final y = rootY - growth * t;
@@ -438,15 +451,15 @@ class _VineWorldPainter extends CustomPainter {
         _drawLeaf(canvas, Offset(x - side * 8, y - 5),
             -side * 2.1, .92, color: const Color(0xFF9BD77C));
       }
-      if (i % 9 == 4 && hours >= 8) {
+      if (i % 9 == 4 && hours >= 160) {
         _oval(canvas, Rect.fromLTWH(x + side * reach, y - 84, 17, 17),
             const Color(0xFFFFD77C));
       }
     }
 
     // Small settlements and treetops appear much later along the giant vine.
-    if (hours >= 8) {
-      final places = (growth / 1050).floor().clamp(1, 80);
+    if (hours >= 300) {
+      final places = ((hours - 299) / 120).floor().clamp(1, 80);
       for (int i = 0; i < places; i++) {
         final t = (i + 1) / (places + 1);
         final y = rootY - growth * t;
