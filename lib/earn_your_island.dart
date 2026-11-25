@@ -139,52 +139,49 @@ class _IslandPainter extends CustomPainter {
   final int land, houses, trees, residentCount, layout;
   final double cloudPhase;
 
-  final Paint _paint = Paint()..isAntiAlias = false;
+  final Paint _paint = Paint()..isAntiAlias = true;
 
-  // Snap every primitive to a deliberately coarse pixel grid. The painter is
-  // enlarged afterwards, so these become visible, crisp pixels on the phone.
-  static const double _pixel = 3.0;
-  double _snap(double value) => (value / _pixel).round() * _pixel;
-
-  void _rect(Canvas c, double x, double y, double w, double h, Color color) {
-    final left = _snap(x), top = _snap(y);
-    final right = _snap(x + w), bottom = _snap(y + h);
+  void _rect(Canvas c, double x, double y, double w, double h, Color color,
+      {double radius = 0}) {
     _paint
+      ..shader = null
       ..color = color
       ..style = PaintingStyle.fill;
-    c.drawRect(Rect.fromLTRB(left, top,
-        right <= left ? left + _pixel : right,
-        bottom <= top ? top + _pixel : bottom), _paint);
+    final rect = Rect.fromLTWH(x, y, w, h);
+    if (radius > 0) {
+      c.drawRRect(RRect.fromRectAndRadius(rect, Radius.circular(radius)), _paint);
+    } else {
+      c.drawRect(rect, _paint);
+    }
   }
 
   void _oval(Canvas c, double x, double y, double w, double h, Color color) {
-    // Pixel-cluster ellipse: no vector-smooth circles anywhere in the island.
-    final left = _snap(x), top = _snap(y);
-    final right = _snap(x + w), bottom = _snap(y + h);
-    final rw = (right - left).abs().clamp(_pixel, double.infinity) / 2;
-    final rh = (bottom - top).abs().clamp(_pixel, double.infinity) / 2;
-    final centerX = left + rw, centerY = top + rh;
     _paint
+      ..shader = null
       ..color = color
       ..style = PaintingStyle.fill;
-    for (double py = top; py < bottom; py += _pixel) {
-      for (double px = left; px < right; px += _pixel) {
-        final dx = (px + _pixel / 2 - centerX) / rw;
-        final dy = (py + _pixel / 2 - centerY) / rh;
-        if (dx * dx + dy * dy <= 1.0) {
-          c.drawRect(Rect.fromLTWH(px, py, _pixel, _pixel), _paint);
-        }
-      }
-    }
+    c.drawOval(Rect.fromLTWH(x, y, w, h), _paint);
   }
 
   void _polygon(Canvas c, List<Offset> points, Color color) {
     _paint
+      ..shader = null
       ..color = color
       ..style = PaintingStyle.fill;
-    final snapped = points.map((p) => Offset(_snap(p.dx), _snap(p.dy))).toList();
-    final path = Path()..addPolygon(snapped, true);
-    c.drawPath(path, _paint);
+    c.drawPath(Path()..addPolygon(points, true), _paint);
+  }
+
+  void _gradientRect(Canvas c, Rect rect, Color top, Color bottom,
+      {double radius = 0}) {
+    _paint
+      ..shader = LinearGradient(colors: [top, bottom]).createShader(rect)
+      ..style = PaintingStyle.fill;
+    if (radius > 0) {
+      c.drawRRect(RRect.fromRectAndRadius(rect, Radius.circular(radius)), _paint);
+    } else {
+      c.drawRect(rect, _paint);
+    }
+    _paint.shader = null;
   }
 
   Offset _arrange(Offset p, double cx, double cy) {
@@ -198,8 +195,6 @@ class _IslandPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Render on a low-resolution logical canvas, then enlarge with the
-    // primitives snapped to a coarse pixel grid for a deliberately chunky look.
     canvas.save();
     canvas.scale(size.width / 180, size.height / 180);
     _paintScene(canvas, const Size(180, 180));
@@ -207,320 +202,306 @@ class _IslandPainter extends CustomPainter {
   }
 
   void _paintScene(Canvas canvas, Size size) {
-    final u = size.shortestSide / 36;
-    final cx = size.width / 2, cy = size.height / 2;
-    _rect(canvas, 0, 0, size.width, size.height, const Color(0xFF72D3E5));
+    const skyTop = Color(0xFF65CDEB);
+    const skyBottom = Color(0xFFB5EDF0);
+    _gradientRect(canvas, Offset.zero & size, skyTop, skyBottom);
 
-    // Agua: pequeñas olas escalonadas y reflejos.
-    for (int i = 0; i < 28; i++) {
-      final x = ((i * 71 + 19) % 97) / 97 * size.width;
-      final y = ((i * 43 + 11) % 89) / 89 * size.height;
-      final w = u * (1.1 + (i % 3) * .55);
-      _rect(canvas, x, y, w, u * .22, const Color(0xFFB8F0E9));
+    final u = size.shortestSide / 36;
+    final cx = size.width / 2;
+    final cy = size.height * .51;
+    final r = 11.3 + (land - 1).clamp(0, 5) * .72;
+
+    // Calm water with soft, clean reflections.
+    for (int i = 0; i < 19; i++) {
+      final x = ((i * 47 + 13) % 101) / 101 * size.width;
+      final y = ((i * 31 + 9) % 97) / 97 * size.height;
+      _rect(canvas, x, y, u * (1.0 + (i % 3) * .55), u * .12,
+          const Color(0x66E8FFFF), radius: u * .08);
+    }
+    for (int i = 0; i < 7; i++) {
+      final x = (i * 29.0 + 8) % 160;
+      final y = 25.0 + (i * 37.0) % 125;
+      _oval(canvas, x, y, u * 1.2, u * .22, const Color(0x22317EAB));
+    }
+
+    // Floating shadow and deep underside.
+    _oval(canvas, cx - r * 1.02, cy - r * .60 + u * 2.2,
+        r * 2.05, r * 1.18, const Color(0x55305F79));
+    final outline = <Offset>[
+      Offset(cx-r*.28*u,cy-r*.91*u), Offset(cx+r*.25*u,cy-r*.91*u),
+      Offset(cx+r*.43*u,cy-r*.78*u), Offset(cx+r*.78*u,cy-r*.77*u),
+      Offset(cx+r*.88*u,cy-r*.53*u), Offset(cx+r*1.02*u,cy-r*.24*u),
+      Offset(cx+r*.98*u,cy+r*.30*u), Offset(cx+r*.78*u,cy+r*.57*u),
+      Offset(cx+r*.60*u,cy+r*.80*u), Offset(cx+r*.22*u,cy+r*.91*u),
+      Offset(cx-r*.28*u,cy+r*.88*u), Offset(cx-r*.55*u,cy+r*.72*u),
+      Offset(cx-r*.87*u,cy+r*.62*u), Offset(cx-r*1.00*u,cy+r*.25*u),
+      Offset(cx-r*.94*u,cy-r*.27*u), Offset(cx-r*.76*u,cy-r*.59*u),
+      Offset(cx-r*.48*u,cy-r*.72*u)
+    ];
+    final lower = outline.map((p) => Offset(p.dx, p.dy + u * 2.65)).toList();
+    _polygon(canvas, lower.map((p) => Offset(p.dx, p.dy + u * .85)).toList(),
+        const Color(0xFF70432F));
+
+    // Faceted voxel-like cliff: each side panel is a distinct block face.
+    for (int i = 0; i < outline.length; i++) {
+      final a = outline[i];
+      final b = outline[(i + 1) % outline.length];
+      final a2 = lower[i];
+      final b2 = lower[(i + 1) % outline.length];
+      final shade = i % 4 == 0
+          ? const Color(0xFFB87543)
+          : i % 4 == 1
+              ? const Color(0xFF965632)
+              : i % 4 == 2
+                  ? const Color(0xFF80482D)
+                  : const Color(0xFFA9663B);
+      _polygon(canvas, [a, b, b2, a2], shade);
       if (i % 3 == 0) {
-        _rect(canvas, x + u * .35, y + u * .25, w * .55, u * .18,
-            const Color(0xFF3AAFCB));
+        _polygon(canvas, [
+          Offset(a.dx, a.dy + u * .5),
+          Offset(b.dx, b.dy + u * .5),
+          Offset(b.dx, b.dy + u * 1.0),
+          Offset(a.dx, a.dy + u * 1.0)
+        ], const Color(0x337A3D25));
       }
     }
+    _polygon(canvas, lower, const Color(0xFF593A2B));
 
-    final r = (11.2 + (land - 1).clamp(0, 5) * .85) * u;
-    final outline = <Offset>[
-      Offset(cx-r*.24,cy-r), Offset(cx+r*.24,cy-r),
-      Offset(cx+r*.34,cy-r*.91), Offset(cx+r*.70,cy-r*.91),
-      Offset(cx+r*.76,cy-r*.72), Offset(cx+r*.94,cy-r*.58),
-      Offset(cx+r,cy-r*.24), Offset(cx+r*.94,cy+r*.36),
-      Offset(cx+r*.78,cy+r*.48), Offset(cx+r*.72,cy+r*.78),
-      Offset(cx+r*.40,cy+r*.88), Offset(cx+r*.20,cy+r),
-      Offset(cx-r*.38,cy+r*.94), Offset(cx-r*.53,cy+r*.78),
-      Offset(cx-r*.83,cy+r*.70), Offset(cx-r*.94,cy+r*.40),
-      Offset(cx-r,cy-r*.28), Offset(cx-r*.82,cy-r*.55),
-      Offset(cx-r*.68,cy-r*.80), Offset(cx-r*.36,cy-r*.82),
-    ];
-
-    // Sombra bajo la isla y costa rocosa en varios niveles.
-    final shadow = outline.map((p)=>Offset(p.dx+u*.65,p.dy+u*1.25)).toList();
-    _polygon(canvas, shadow, const Color(0xFF1879B7));
-    _polygon(canvas, outline.map((p)=>Offset(p.dx,p.dy+u*1.18)).toList(),
-        const Color(0xFF59351F));
-    _polygon(canvas, outline.map((p)=>Offset(p.dx,p.dy+u*.88)).toList(),
-        const Color(0xFF8A4B28));
-    _polygon(canvas, outline.map((p)=>Offset(p.dx,p.dy+u*.52)).toList(),
-        const Color(0xFFC27637));
-    _polygon(canvas, outline, const Color(0xFF315F35));
-
-    // Facetas claras y oscuras de los acantilados.
-    for (int i=0;i<outline.length;i++) {
-      final a=outline[i], b=outline[(i+1)%outline.length];
-      final mid=Offset((a.dx+b.dx)/2,(a.dy+b.dy)/2+u*.72);
-      _polygon(canvas,[a,b,Offset(b.dx,b.dy+u*1.05),mid],
-          i.isEven?const Color(0xFFD99A5B):const Color(0xFF95603D));
-      _rect(canvas, mid.dx-u*.32, mid.dy-u*.10, u*.72, u*.18,
-          i%3==0?const Color(0xFFF0C27B):const Color(0xFF744832));
-    }
-
-    final grass = outline.map((p)=>Offset(p.dx,p.dy-u*.25)).toList();
-    _polygon(canvas, grass, const Color(0xFF79D92F));
+    // Top grass slab with a bright bevel.
+    final top = outline.map((p) => Offset(p.dx, p.dy - u * .55)).toList();
+    _polygon(canvas, top.map((p) => Offset(p.dx, p.dy + u * .30)).toList(),
+        const Color(0xFF397B3C));
+    _polygon(canvas, top, const Color(0xFF70C94B));
     _polygon(canvas, [
-      Offset(cx-r*.82,cy+r*.15),Offset(cx-r*.68,cy+r*.62),
-      Offset(cx-r*.28,cy+r*.83),Offset(cx+r*.18,cy+r*.80),
-      Offset(cx+r*.64,cy+r*.55),Offset(cx+r*.78,cy+r*.12),
-      Offset(cx+r*.42,cy-r*.35),Offset(cx-r*.18,cy-r*.42)
-    ], const Color(0xFF69C82C));
+      Offset(cx-r*.75*u,cy-r*.20*u), Offset(cx-r*.61*u,cy-r*.57*u),
+      Offset(cx-r*.31*u,cy-r*.73*u), Offset(cx+r*.12*u,cy-r*.73*u),
+      Offset(cx+r*.36*u,cy-r*.60*u), Offset(cx+r*.70*u,cy-r*.55*u),
+      Offset(cx+r*.87*u,cy-r*.19*u), Offset(cx+r*.82*u,cy+r*.24*u),
+      Offset(cx+r*.54*u,cy+r*.57*u), Offset(cx+r*.08*u,cy+r*.70*u),
+      Offset(cx-r*.42*u,cy+r*.55*u), Offset(cx-r*.76*u,cy+r*.28*u)
+    ], const Color(0xFF83D957));
 
-    // Borde oscuro y escalonado, como en los escenarios de pixel art clásicos.
-    final edge = Path()
-      ..addPolygon(outline.map((p) => Offset(_snap(p.dx), _snap(p.dy))).toList(), true);
-    _paint
-      ..color = const Color(0xFF174F32)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = u * .92
-      ..strokeJoin = StrokeJoin.miter;
-    canvas.drawPath(edge, _paint);
-    _paint.style = PaintingStyle.fill;
+    // Subtle terrain light and shade, with smooth edges rather than pixel noise.
+    _oval(canvas, cx-r*.65*u, cy-r*.12*u, r*1.12*u, r*.93*u,
+        const Color(0x1EBAF17A));
+    _oval(canvas, cx-r*.02*u, cy-r*.05*u, r*1.00*u, r*.95*u,
+        const Color(0x1D398E36));
 
-    // Sombras de nubes: bloques translúcidos que cruzan la superficie de la isla.
+    // Animated cloud shadows slide across the island.
     final cloudXs = <double>[
       ((cloudPhase * (size.width + 92) - 46) % (size.width + 92)) - 46,
       (((cloudPhase + .52) % 1) * (size.width + 92) - 46) - 46,
     ];
-    final clipPath = Path()..addPolygon(outline, true);
+    final landClip = Path()..addPolygon(top, true);
     canvas.save();
-    canvas.clipPath(clipPath);
+    canvas.clipPath(landClip);
     for (int i = 0; i < cloudXs.length; i++) {
-      final sx = cloudXs[i];
-      final sy = cy - r * (.43 - i * .10) + u * 2.2;
-      final shade = const Color(0x443B5362);
-      _rect(canvas, sx, sy, u * 4.8, u * .72, shade);
-      _rect(canvas, sx + u * .7, sy + u * .55, u * 5.2, u * .62, shade);
-      _rect(canvas, sx + u * 1.6, sy + u * 1.02, u * 3.8, u * .55, shade);
+      final x = cloudXs[i];
+      final y = cy - r * u * (.42 - i * .12);
+      _oval(canvas, x, y, u * 8.8, u * 3.2, const Color(0x263B5870));
+      _oval(canvas, x + u * 1.1, y + u * .3, u * 6.0, u * 2.2,
+          const Color(0x183B5870));
     }
     canvas.restore();
 
-    // Manchas de césped, pequeñas hojas y flores.
-    // Grass texture in small, irregular clusters instead of evenly scattered dots.
-    for(int i=0;i<94;i++){
-      final x=cx+(((i*37)%31)-15)*u*.57;
-      final y=cy+(((i*19)%29)-14)*u*.55;
-      final col=i%5==0?const Color(0xFF9BEA49):
-          i%5==1?const Color(0xFF4DAF32):
-          i%5==2?const Color(0xFF5DBB32):const Color(0xFF8BE13A);
-      final w=u*(.22+(i%4)*.12);
-      _rect(canvas,x,y,w,u*(.12+(i%2)*.10),col);
-      if (i % 4 == 0) {
-        _rect(canvas, x + u * .20, y - u * .18, u * .14, u * .30,
-            const Color(0xFF3D9A35));
-        _rect(canvas, x + u * .42, y + u * .06, u * .14, u * .18,
-            const Color(0xFFB0E94B));
-      }
+    // Winding sandy path with a darker edge and a warm center.
+    final path = Path()
+      ..moveTo(cx-r*.46*u, cy+r*.62*u)
+      ..cubicTo(cx-r*.39*u, cy+r*.18*u, cx-r*.47*u, cy-r*.16*u,
+          cx-r*.24*u, cy-r*.42*u)
+      ..cubicTo(cx-r*.05*u, cy-r*.62*u, cx+r*.03*u, cy-r*.38*u,
+          cx+r*.22*u, cy-r*.25*u);
+    _paint
+      ..shader = null
+      ..color = const Color(0xFF9D633D)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = u * 2.65
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(path, _paint);
+    _paint
+      ..color = const Color(0xFFE2A66A)
+      ..strokeWidth = u * 2.15;
+    canvas.drawPath(path, _paint);
+    _paint.style = PaintingStyle.fill;
+    for (int i = 0; i < 17; i++) {
+      final x = cx-r*.40*u + (i%4)*u*.19 + (i%3)*u*.10;
+      final y = cy+r*.50*u-i*u*.48;
+      _oval(canvas,x,y,u*.20,u*.12,const Color(0x99F4C58A));
     }
-    // Broad soft-looking but pixel-stepped light/shade patch in the lawn.
-    _polygon(canvas,[
-      Offset(cx-r*.58,cy+r*.12),Offset(cx-r*.40,cy-r*.10),
-      Offset(cx-r*.12,cy-r*.22),Offset(cx+r*.30,cy-r*.12),
-      Offset(cx+r*.55,cy+r*.12),Offset(cx+r*.34,cy+r*.48),
-      Offset(cx-r*.10,cy+r*.60),Offset(cx-r*.48,cy+r*.42)
-    ],const Color(0x2260A92D));
 
-    // Camino de tierra con piedras individuales.
-    final pathPoints=[
-      Offset(cx-r*.42,cy+r*.65),Offset(cx-r*.35,cy+r*.10),
-      Offset(cx-r*.31,cy-r*.34),Offset(cx-r*.12,cy-r*.48),
-      Offset(cx+r*.02,cy-r*.28)
+    // Small grass tufts and flowers, spaced with intentional composition.
+    final tufts = <Offset>[
+      Offset(cx-r*.60*u,cy-r*.28*u), Offset(cx-r*.55*u,cy+r*.20*u),
+      Offset(cx-r*.20*u,cy-r*.70*u), Offset(cx+r*.46*u,cy-r*.48*u),
+      Offset(cx+r*.69*u,cy-r*.10*u), Offset(cx+r*.48*u,cy+r*.50*u),
+      Offset(cx-r*.22*u,cy+r*.65*u), Offset(cx-r*.72*u,cy+r*.42*u),
+      Offset(cx+r*.12*u,cy-r*.57*u), Offset(cx+r*.72*u,cy+r*.27*u)
     ];
-    for(int i=0;i<pathPoints.length-1;i++){
-      final a=pathPoints[i],b=pathPoints[i+1];
+    for (int i = 0; i < tufts.length; i++) {
+      final p = tufts[i];
+      _oval(canvas,p.dx,p.dy,u*.34,u*.13,const Color(0x553E8E36));
       _polygon(canvas,[
-        Offset(a.dx-u*1.32,a.dy),Offset(a.dx+u*1.22,a.dy),
-        Offset(b.dx+u*1.22,b.dy),Offset(b.dx-u*1.32,b.dy)
-      ],const Color(0xFFB96D35));
-      _polygon(canvas,[
-        Offset(a.dx-u*1.08,a.dy-u*.08),Offset(a.dx+u*.98,a.dy-u*.08),
-        Offset(b.dx+u*.98,b.dy-u*.08),Offset(b.dx-u*1.08,b.dy-u*.08)
-      ],const Color(0xFFD98A49));
-    }
-    for(int i=0;i<13;i++){
-      final x=cx-r*.37+((i%3)-1)*u*.42;
-      final y=cy+r*.55-i*u*.78;
-      _rect(canvas,x,y,u*.42,u*.24,const Color(0xFF8E552F));
-      _rect(canvas,x+u*.08,y-u*.04,u*.30,u*.16,const Color(0xFFE8B477));
-    }
-
-    // Arbustos y flores en pequeños grupos.
-    for(int i=0;i<8;i++){
-      final x=cx+(((i*23)%17)-8)*u*.95;
-      final y=cy+(((i*17)%15)-7)*u*.83;
-      if(i%2==0){
-        _rect(canvas,x,y,u*.22,u*.38,const Color(0xFF397C43));
-        _rect(canvas,x-u*.18,y-u*.12,u*.34,u*.28,const Color(0xFF4D9B4E));
-        _rect(canvas,x+u*.14,y-u*.18,u*.30,u*.30,const Color(0xFF5EAD50));
-      } else {
-        _rect(canvas,x,y,u*.18,u*.28,const Color(0xFF3E914C));
-        _rect(canvas,x-u*.18,y-u*.10,u*.18,u*.18,const Color(0xFFFFD56D));
-        _rect(canvas,x+u*.12,y-u*.22,u*.18,u*.18,const Color(0xFFFF9DB2));
+        Offset(p.dx,p.dy),Offset(p.dx-u*.08,p.dy-u*.42),
+        Offset(p.dx+u*.12,p.dy-u*.12),Offset(p.dx+u*.24,p.dy-u*.36),
+        Offset(p.dx+u*.25,p.dy)
+      ],const Color(0xFF4C9F3D));
+      if (i % 3 == 0) {
+        _oval(canvas,p.dx+u*.48,p.dy-u*.20,u*.30,u*.30,
+            const Color(0xFFFFD66D));
+        _oval(canvas,p.dx+u*.55,p.dy-u*.13,u*.13,u*.13,
+            const Color(0xFFFFF0A5));
       }
     }
 
-    // Árboles con tronco, raíces, copa en capas y píxeles de luz.
-    final treeSpots=<Offset>[
-      Offset(cx-r*.48,cy-r*.40),Offset(cx+r*.48,cy-r*.38),
-      Offset(cx-r*.53,cy+r*.35),Offset(cx+r*.50,cy+r*.38),
-      Offset(cx+r*.02,cy-r*.62),Offset(cx+r*.05,cy+r*.62),
+    // Trees are built from stacked cuboids with visible top and side faces.
+    final treeSpots = <Offset>[
+      Offset(cx+r*.48*u,cy-r*.42*u), Offset(cx-r*.55*u,cy+r*.20*u),
+      Offset(cx+r*.58*u,cy+r*.34*u), Offset(cx-r*.15*u,cy-r*.62*u),
+      Offset(cx+r*.08*u,cy+r*.60*u), Offset(cx-r*.65*u,cy-r*.35*u)
     ];
-    for(int i=0;i<trees.clamp(0,treeSpots.length);i++){
-      final o=_arrange(treeSpots[i],cx,cy);
-      _oval(canvas,o.dx-u*.80,o.dy+u*.30,u*1.7,u*.55,
-          const Color(0x55365C38));
-      _rect(canvas,o.dx-u*.16,o.dy-u*.05,u*.34,u*.98,
-          const Color(0xFF89552F));
-      _rect(canvas,o.dx-u*.48,o.dy+u*.54,u*.38,u*.16,
-          const Color(0xFF89552F));
-      _rect(canvas,o.dx+u*.12,o.dy+u*.58,u*.36,u*.16,
-          const Color(0xFF89552F));
-      // Layered square canopy: individual pixel clusters, not a round lollipop.
-      _rect(canvas,o.dx-u*.78,o.dy-u*1.32,u*1.56,u*1.52,
-          const Color(0xFF174E32));
-      _rect(canvas,o.dx-u*1.02,o.dy-u*.98,u*2.04,u*1.10,
-          const Color(0xFF246B39));
-      _rect(canvas,o.dx-u*.78,o.dy-u*1.52,u*1.56,u*.58,
-          const Color(0xFF2D7D3C));
-      _rect(canvas,o.dx-u*.48,o.dy-u*1.72,u*.98,u*.42,
-          const Color(0xFF4A9C42));
-      _rect(canvas,o.dx-u*.62,o.dy-u*1.28,u*.42,u*.32,
-          const Color(0xFF72C84A));
-      _rect(canvas,o.dx+u*.18,o.dy-u*1.02,u*.46,u*.30,
-          const Color(0xFF56AD43));
-      _rect(canvas,o.dx-u*.92,o.dy-u*.48,u*.30,u*.28,
-          const Color(0xFF3C9140));
-    }
-
-    // Casas: paredes con zócalo, tejado a dos aguas, chimenea y ventanas.
-    final homeSpots=<Offset>[
-      Offset(cx+u*.65,cy-u*.15),Offset(cx+r*.38,cy+r*.22),
-      Offset(cx-r*.30,cy+r*.24),Offset(cx+u*.10,cy+r*.58),
-    ];
-    for(int i=0;i<houses.clamp(0,homeSpots.length);i++){
-      final o=_arrange(homeSpots[i],cx,cy);
-      _oval(canvas,o.dx-u*1.25,o.dy+u*.70,u*2.6,u*.52,
-          const Color(0x55345D38));
-      _rect(canvas,o.dx-u*.90,o.dy-u*.05,u*1.80,u*1.18,
-          const Color(0xFF684936));
-      _rect(canvas,o.dx-u*.78,o.dy-u*.12,u*1.56,u*1.02,
-          const Color(0xFFF0D6A0));
-      _rect(canvas,o.dx-u*.88,o.dy+u*.78,u*1.76,u*.20,
-          const Color(0xFF78604A));
+    for (int i = 0; i < trees.clamp(0, treeSpots.length); i++) {
+      final p = _arrange(treeSpots[i],cx,cy);
+      _oval(canvas,p.dx-u*.92,p.dy+u*.30,u*1.85,u*.55,
+          const Color(0x55324F35));
+      _rect(canvas,p.dx-u*.22,p.dy-u*.05,u*.44,u*.98,
+          const Color(0xFF80502F));
       _polygon(canvas,[
-        Offset(o.dx-u*1.18,o.dy-u*.16),Offset(o.dx,o.dy-u*1.20),
-        Offset(o.dx+u*1.18,o.dy-u*.16),Offset(o.dx+u*.95,o.dy+u*.04),
-        Offset(o.dx,o.dy-u*.78),Offset(o.dx-u*.96,o.dy+u*.04)
-      ],const Color(0xFF783E39));
-      _polygon(canvas,[
-        Offset(o.dx-u*1.08,o.dy-u*.20),Offset(o.dx,o.dy-u*1.15),
-        Offset(o.dx,o.dy-u*.78),Offset(o.dx-u*.92,o.dy+u*.03)
-      ],const Color(0xFFD66A4E));
-      _polygon(canvas,[
-        Offset(o.dx,o.dy-u*1.15),Offset(o.dx+u*1.08,o.dy-u*.20),
-        Offset(o.dx+u*.94,o.dy+u*.03),Offset(o.dx,o.dy-u*.78)
-      ],const Color(0xFFB94F49));
-      for(int k=0;k<4;k++){
-        _rect(canvas,o.dx-u*.78+k*u*.42,o.dy-u*.20+k*u*.19,
-            u*.28,u*.10,const Color(0xFFE58A62));
+        Offset(p.dx-u*.22,p.dy+u*.05),Offset(p.dx,p.dy+u*.18),
+        Offset(p.dx,p.dy+u*.98),Offset(p.dx-u*.22,p.dy+.84*u)
+      ],const Color(0xFF633E2B));
+      // Three staggered foliage blocks, each with a top highlight.
+      void foliage(double x,double y,double w,double h,Color front,Color side) {
+        _polygon(canvas,[
+          Offset(x,y),Offset(x+w*.25,y-u*.22),
+          Offset(x+w,y-u*.22),Offset(x+w*1.08,y+h*.62),
+          Offset(x+w*.84,y+h),Offset(x,y+h)
+        ],front);
+        _polygon(canvas,[
+          Offset(x+w*.25,y-u*.22),Offset(x+w*.48,y-u*.42),
+          Offset(x+w*1.18,y-u*.40),Offset(x+w,y-u*.22)
+        ],const Color(0xFF78C95A));
+        _polygon(canvas,[
+          Offset(x+w,y-u*.22),Offset(x+w*1.08,y+h*.62),
+          Offset(x+w*.84,y+h),Offset(x+w*.82,y-u*.02)
+        ],side);
       }
-      _rect(canvas,o.dx+u*.38,o.dy-u*1.50,u*.32,u*.75,
-          const Color(0xFF754B3D));
-      _rect(canvas,o.dx+u*.43,o.dy-u*1.43,u*.22,u*.18,
-          const Color(0xFFB9A18A));
-      _rect(canvas,o.dx-u*.20,o.dy+u*.35,u*.43,u*.82,
-          const Color(0xFF8B5638));
-      _rect(canvas,o.dx-u*.12,o.dy+u*.43,u*.27,u*.72,
-          const Color(0xFFA96C43));
-      _oval(canvas,o.dx+u*.12,o.dy+u*.72,u*.08,u*.08,
-          const Color(0xFFFFD66E));
-      _rect(canvas,o.dx-u*.68,o.dy+u*.12,u*.34,u*.32,
-          const Color(0xFF6C9DA5));
-      _rect(canvas,o.dx+u*.36,o.dy+u*.12,u*.34,u*.32,
-          const Color(0xFF6C9DA5));
-      _rect(canvas,o.dx-u*.72,o.dy+u*.08,u*.42,u*.08,
-          const Color(0xFFF8E8B8));
-      _rect(canvas,o.dx+u*.32,o.dy+u*.08,u*.42,u*.08,
-          const Color(0xFFF8E8B8));
+      foliage(p.dx-u*.94,p.dy-u*1.05,u*1.70,u*1.18,
+          const Color(0xFF368847),const Color(0xFF24683B));
+      foliage(p.dx-u*.68,p.dy-u*1.52,u*1.48,u*1.02,
+          const Color(0xFF4FA64A),const Color(0xFF2F7D3F));
+      _polygon(canvas,[
+        Offset(p.dx-u*.38,p.dy-u*1.55),Offset(p.dx-u*.12,p.dy-u*1.82),
+        Offset(p.dx+u*.58,p.dy-u*1.80),Offset(p.dx+u*.88,p.dy-u*1.52)
+      ],const Color(0xFF80D65B));
+      _rect(canvas,p.dx-u*.45,p.dy-u*1.24,u*.34,u*.24,
+          const Color(0xFF8BD969),radius:u*.06);
     }
 
-    // Habitantes con siluetas completas y detalles propios.
-    final spots=<Offset>[
-      Offset(cx-r*.08,cy+r*.20),Offset(cx+r*.24,cy+r*.25),
-      Offset(cx+u*.10,cy+r*.48)
+    // Houses: warm little voxel cottages with distinct roof, walls and depth.
+    final homeSpots = <Offset>[
+      Offset(cx+u*.55,cy-u*.02), Offset(cx+r*.38*u,cy+r*.20*u),
+      Offset(cx-r*.32*u,cy+r*.24*u), Offset(cx+u*.08,cy+r*.57*u)
     ];
-    final clothes=[const Color(0xFFE5A04F),const Color(0xFF5C9B69),
+    for (int i = 0; i < houses.clamp(0, homeSpots.length); i++) {
+      final p = _arrange(homeSpots[i],cx,cy);
+      _oval(canvas,p.dx-u*1.35,p.dy+u*.72,u*2.7,u*.62,
+          const Color(0x55334F38));
+      // Building front and right wall.
+      _polygon(canvas,[
+        Offset(p.dx-u*.92,p.dy-u*.10),Offset(p.dx+u*.55,p.dy-u*.10),
+        Offset(p.dx+u*.55,p.dy+u*1.08),Offset(p.dx-u*.92,p.dy+u*1.08)
+      ],const Color(0xFFF2D9A5));
+      _polygon(canvas,[
+        Offset(p.dx+u*.55,p.dy-u*.10),Offset(p.dx+u*1.02,p.dy-u*.36),
+        Offset(p.dx+u*1.02,p.dy+u*.82),Offset(p.dx+u*.55,p.dy+u*1.08)
+      ],const Color(0xFFD4AE7D));
+      // Roof ridge and two sloping roof planes.
+      _polygon(canvas,[
+        Offset(p.dx-u*1.18,p.dy-u*.12),Offset(p.dx-u*.05,p.dy-u*1.18),
+        Offset(p.dx+u*.72,p.dy-u*.36),Offset(p.dx+u*.55,p.dy-u*.12)
+      ],const Color(0xFFB94D3F));
+      _polygon(canvas,[
+        Offset(p.dx-u*.05,p.dy-u*1.18),Offset(p.dx+u*.72,p.dy-u*.36),
+        Offset(p.dx+u*1.18,p.dy-u*.58),Offset(p.dx+u*.12,p.dy-u*1.48)
+      ],const Color(0xFF873B37));
+      _polygon(canvas,[
+        Offset(p.dx-u*1.18,p.dy-u*.12),Offset(p.dx-u*.05,p.dy-u*1.18),
+        Offset(p.dx+u*.12,p.dy-u*1.48),Offset(p.dx-u*1.00,p.dy-u*.42)
+      ],const Color(0xFFE06C50));
+      // Door, windows and small lit details.
+      _rect(canvas,p.dx-u*.23,p.dy+u*.42,u*.42,u*.66,
+          const Color(0xFF895638),radius:u*.04);
+      _rect(canvas,p.dx-u*.75,p.dy+u*.20,u*.36,u*.34,
+          const Color(0xFF6AA6B1),radius:u*.04);
+      _rect(canvas,p.dx+u*.20,p.dy+u*.20,u*.30,u*.34,
+          const Color(0xFF6AA6B1),radius:u*.04);
+      _rect(canvas,p.dx-u*.78,p.dy+u*.16,u*.42,u*.07,
+          const Color(0xFFFFF0C5));
+      _rect(canvas,p.dx+u*.18,p.dy+u*.16,u*.34,u*.07,
+          const Color(0xFFFFF0C5));
+      _rect(canvas,p.dx+u*.73,p.dy-u*.86,u*.25,u*.72,
+          const Color(0xFF8D5A43));
+      _rect(canvas,p.dx+u*.70,p.dy-u*.91,u*.34,u*.14,
+          const Color(0xFFB77C5A));
+    }
+
+    // Residents are small rounded low-poly sprites, with clear heads and outfits.
+    final residentSpots = <Offset>[
+      Offset(cx-r*.08*u,cy+r*.22*u), Offset(cx+r*.22*u,cy+r*.30*u),
+      Offset(cx-u*.18,cy+r*.48*u)
+    ];
+    final outfits = [const Color(0xFFE5A04F),const Color(0xFF5C9B69),
       const Color(0xFF668FCB)];
-    final hair=[const Color(0xFF75452F),const Color(0xFF4D4035),
+    final hair = [const Color(0xFF75452F),const Color(0xFF4D4035),
       const Color(0xFF55466B)];
-    for(int i=0;i<residentCount.clamp(0,3);i++){
-      final o=_arrange(spots[i],cx,cy);
-      final col=clothes[i];
-      _oval(canvas,o.dx-u*.46,o.dy+u*.53,u*.92,u*.25,
-          const Color(0x55304F37));
-      // Piernas y zapatos.
-      _rect(canvas,o.dx-u*.23,o.dy+u*.23,u*.18,u*.42,
-          const Color(0xFF665044));
-      _rect(canvas,o.dx+u*.05,o.dy+u*.23,u*.18,u*.42,
-          const Color(0xFF665044));
-      _rect(canvas,o.dx-u*.29,o.dy+u*.58,u*.28,u*.13,
-          const Color(0xFF493D39));
-      _rect(canvas,o.dx+u*.02,o.dy+u*.58,u*.28,u*.13,
-          const Color(0xFF493D39));
-      // Brazos, torso y cuello.
-      _rect(canvas,o.dx-u*.43,o.dy-u*.02,u*.18,u*.48,col);
-      _rect(canvas,o.dx+u*.25,o.dy-u*.02,u*.18,u*.48,col);
-      _rect(canvas,o.dx-u*.32,o.dy-u*.10,u*.64,u*.64,col);
-      _rect(canvas,o.dx-u*.26,o.dy+u*.32,u*.52,u*.10,
+    for (int i = 0; i < residentCount.clamp(0,3); i++) {
+      final p = _arrange(residentSpots[i],cx,cy);
+      _oval(canvas,p.dx-u*.43,p.dy+u*.48,u*.86,u*.28,
+          const Color(0x55334D38));
+      _rect(canvas,p.dx-u*.23,p.dy+u*.22,u*.19,u*.38,
+          const Color(0xFF675044),radius:u*.04);
+      _rect(canvas,p.dx+u*.04,p.dy+u*.22,u*.19,u*.38,
+          const Color(0xFF675044),radius:u*.04);
+      _rect(canvas,p.dx-u*.34,p.dy-u*.10,u*.68,u*.56,outfits[i],
+          radius:u*.12);
+      _rect(canvas,p.dx-u*.30,p.dy+u*.28,u*.60,u*.10,
           i==0?const Color(0xFFF4D16B):i==1?const Color(0xFFB5D98A):const Color(0xFFB6C8F0));
-      _rect(canvas,o.dx-u*.12,o.dy-u*.20,u*.24,u*.16,
-          const Color(0xFFFFC69A));
-      // Cabeza, cabello, orejas y expresión.
-      _rect(canvas,o.dx-u*.28,o.dy-u*.72,u*.56,u*.56,
-          const Color(0xFFFFC99F));
-      _rect(canvas,o.dx-u*.36,o.dy-u*.68,u*.12,u*.22,
-          const Color(0xFFFFB98E));
-      _rect(canvas,o.dx+u*.24,o.dy-u*.68,u*.12,u*.22,
-          const Color(0xFFFFB98E));
-      _rect(canvas,o.dx-u*.31,o.dy-u*.79,u*.62,u*.20,hair[i]);
-      _rect(canvas,o.dx-u*.29,o.dy-u*.62,u*.12,u*.20,hair[i]);
-      _rect(canvas,o.dx+u*.17,o.dy-u*.62,u*.12,u*.20,hair[i]);
-      _rect(canvas,o.dx-u*.16,o.dy-u*.48,u*.07,u*.07,
-          const Color(0xFF493B36));
-      _rect(canvas,o.dx+u*.09,o.dy-u*.48,u*.07,u*.07,
-          const Color(0xFF493B36));
-      _rect(canvas,o.dx-u*.04,o.dy-u*.32,u*.12,u*.04,
-          const Color(0xFFB96E63));
-      // Detalle distintivo de cada residente.
-      if(i==0){
-        _rect(canvas,o.dx-u*.38,o.dy-u*.91,u*.76,u*.12,
-            const Color(0xFFE8B65D)); // pañuelo
-      } else if(i==1){
-        _rect(canvas,o.dx-u*.34,o.dy-u*.91,u*.68,u*.12,
-            const Color(0xFF6CB978)); // gorro
-        _rect(canvas,o.dx+u*.22,o.dy-u*.98,u*.12,u*.18,
-            const Color(0xFF4C8D53));
+      _rect(canvas,p.dx-u*.30,p.dy-u*.76,u*.60,u*.58,
+          const Color(0xFFFFC99F),radius:u*.16);
+      _rect(canvas,p.dx-u*.34,p.dy-u*.82,u*.68,u*.20,hair[i],
+          radius:u*.10);
+      _rect(canvas,p.dx-u*.24,p.dy-u*.48,u*.10,u*.10,
+          const Color(0xFF493B36),radius:u*.03);
+      _rect(canvas,p.dx+u*.12,p.dy-u*.48,u*.10,u*.10,
+          const Color(0xFF493B36),radius:u*.03);
+      _rect(canvas,p.dx-u*.10,p.dy-u*.32,u*.20,u*.04,
+          const Color(0xFFB96E63),radius:u*.02);
+      if (i==0) {
+        _rect(canvas,p.dx-u*.38,p.dy-u*.91,u*.76,u*.13,
+            const Color(0xFFE8B65D),radius:u*.06);
+      } else if (i==1) {
+        _rect(canvas,p.dx-u*.34,p.dy-u*.94,u*.68,u*.15,
+            const Color(0xFF6CB978),radius:u*.06);
       } else {
-        _rect(canvas,o.dx-u*.35,o.dy-u*.88,u*.70,u*.13,
-            const Color(0xFF688BC5)); // gorro de inventor
-        _rect(canvas,o.dx+u*.30,o.dy-u*.82,u*.16,u*.16,
-            const Color(0xFFFFD36A));
+        _rect(canvas,p.dx-u*.36,p.dy-u*.92,u*.72,u*.14,
+            const Color(0xFF688BC5),radius:u*.06);
       }
     }
 
-    // Nubes en bloques: avanzan lentamente sobre el cielo y proyectan sombras.
+    // Puffy clouds remain in motion above the island.
     for (int i = 0; i < cloudXs.length; i++) {
       final x = cloudXs[i];
-      final y = u * (3.2 + i * 3.0);
-      final cloud = const Color(0xFFEAF8F7);
-      final light = const Color(0xFFFFFFFF);
-      _rect(canvas, x + u * .8, y + u * .5, u * 4.8, u * .9, cloud);
-      _rect(canvas, x + u * 1.6, y, u * 2.8, u * .8, light);
-      _rect(canvas, x, y + u, u * 2.2, u * .65, cloud);
-      _rect(canvas, x + u * 3.8, y + u * .9, u * 2.4, u * .65, cloud);
-      _rect(canvas, x + u * 1.2, y + u * 1.2, u * 4.2, u * .55,
-          const Color(0xFFD1EAE8));
+      final y = u * (3.0 + i * 3.2);
+      _oval(canvas,x+u*.5,y+u*.65,u*5.8,u*1.05,
+          const Color(0x4477A8B4));
+      _rect(canvas,x+u*.8,y+u*.45,u*4.7,u*.88,
+          const Color(0xFFEAF8F7),radius:u*.38);
+      _oval(canvas,x+u*1.3,y,u*2.5,u*1.65,const Color(0xFFF8FFFF));
+      _oval(canvas,x+u*3.0,y+u*.25,u*2.5,u*1.35,
+          const Color(0xFFF3FCFC));
+      _rect(canvas,x+u*1.1,y+u*1.0,u*4.2,u*.35,
+          const Color(0xFFD4ECEB),radius:u*.18);
     }
   }
 
