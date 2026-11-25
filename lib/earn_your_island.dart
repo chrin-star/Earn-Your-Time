@@ -231,8 +231,10 @@ class _IslandPainter extends CustomPainter {
       final col=i%4==0?const Color(0xFFA4E66B):
           i%4==1?const Color(0xFF69B94B):const Color(0xFF8BD75A);
       _rect(canvas,x,y,u*(.18+(i%3)*.10),u*.16,col);
-      if(i%5==0)_rect(canvas,x+u*.22,y-u*.16,u*.12,u*.24,
-          const Color(0xFF559F48));
+      if (i % 5 == 0) {
+        _rect(canvas, x + u * .22, y - u * .16, u * .12, u * .24,
+            const Color(0xFF559F48));
+      }
     }
 
     // Camino de tierra con piedras individuales.
