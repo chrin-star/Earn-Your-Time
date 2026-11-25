@@ -245,6 +245,7 @@ class _VineWorldPainter extends CustomPainter {
     [Color(0xFF101A3D), Color(0xFF30245F)],
     [Color(0xFF171A43), Color(0xFF523A79)],
     [Color(0xFF171A43), Color(0xFF523A79)],
+    [Color(0xFF201C50), Color(0xFF5D477F)],
   ];
 
   Color _mix(Color a, Color b, double t) =>
@@ -291,7 +292,7 @@ class _VineWorldPainter extends CustomPainter {
     final h = size.height;
     final rootY = h - 86.0;
     final tipY = rootY - growth;
-    final stage = _milestones.lastIndexWhere((v) => hours >= v).clamp(0, 5).toInt();
+    final stage = _milestones.lastIndexWhere((v) => hours >= v).clamp(0, _milestones.length - 2).toInt();
     final span = _milestones[stage + 1] - _milestones[stage];
     final blend = ((hours - _milestones[stage]) / span).clamp(0.0, 1.0);
     final top = _mix(_sky[stage][0], _sky[stage + 1][0], blend);
