@@ -12,6 +12,9 @@ class EarnYourVineView extends StatefulWidget {
 class _EarnYourVineViewState extends State<EarnYourVineView> {
   final ScrollController _scroll = ScrollController();
   bool _firstLayout = true;
+  double _lastViewportHeight = 420;
+  double _lastWorldHeight = 900;
+  double _lastHours = 0;
 
   @override
   void didUpdateWidget(covariant EarnYourVineView oldWidget) {
@@ -23,8 +26,11 @@ class _EarnYourVineViewState extends State<EarnYourVineView> {
 
   void _followTip() {
     if (!_scroll.hasClients) return;
+    final tipY = _lastWorldHeight - 118 - (105 + math.sqrt(_lastHours) * 155);
+    final target = (tipY - _lastViewportHeight * .42)
+        .clamp(0.0, _scroll.position.maxScrollExtent).toDouble();
     _scroll.animateTo(
-      _scroll.position.maxScrollExtent,
+      target,
       duration: const Duration(milliseconds: 850),
       curve: Curves.easeInOutCubic,
     );
@@ -94,6 +100,9 @@ class _EarnYourVineViewState extends State<EarnYourVineView> {
               borderRadius: BorderRadius.circular(26),
               child: LayoutBuilder(
                 builder: (context, constraints) {
+                  _lastViewportHeight = constraints.maxHeight;
+                  _lastWorldHeight = worldHeight;
+                  _lastHours = hours;
                   final painter = _VineWorldPainter(
                     hours: hours,
                     worldHeight: worldHeight,
