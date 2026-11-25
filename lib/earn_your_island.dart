@@ -77,7 +77,7 @@ class _EarnYourIslandViewState extends State<EarnYourIslandView> {
       ]),
       const SizedBox(height:14),
       AspectRatio(aspectRatio:1.22,child:ClipRRect(borderRadius:BorderRadius.circular(24),child:CustomPaint(painter:_IslandPainter(land,houses,trees),child:const SizedBox.expand()))),
-      Center(child:Text('Zona '+land.toString()+' · '+houses.toString()+' casas · '+trees.toString()+' árboles',style:t.textTheme.labelLarge?.copyWith(color:c.onSurfaceVariant))),
+      Center(child:Text('Zona $land · $houses casas · $trees árboles',style:t.textTheme.labelLarge?.copyWith(color:c.onSurfaceVariant))),
       const SizedBox(height:14),
       Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
         Text('Haz crecer tu isla',style:t.textTheme.titleLarge?.copyWith(fontWeight:FontWeight.w800)),
