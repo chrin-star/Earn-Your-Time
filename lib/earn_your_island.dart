@@ -141,19 +141,39 @@ class _IslandPainter extends CustomPainter {
 
   final Paint _paint = Paint()..isAntiAlias = false;
 
+  // Snap every primitive to a deliberately coarse pixel grid. The painter is
+  // enlarged afterwards, so these become visible, crisp pixels on the phone.
+  static const double _pixel = 3.0;
+  double _snap(double value) => (value / _pixel).round() * _pixel;
+
   void _rect(Canvas c, double x, double y, double w, double h, Color color) {
-    _paint.color = color;
-    c.drawRect(Rect.fromLTWH(x, y, w, h), _paint);
+    final left = _snap(x), top = _snap(y);
+    final right = _snap(x + w), bottom = _snap(y + h);
+    _paint
+      ..color = color
+      ..style = PaintingStyle.fill;
+    c.drawRect(Rect.fromLTRB(left, top,
+        right <= left ? left + _pixel : right,
+        bottom <= top ? top + _pixel : bottom), _paint);
   }
 
   void _oval(Canvas c, double x, double y, double w, double h, Color color) {
-    _paint.color = color;
-    c.drawOval(Rect.fromLTWH(x, y, w, h), _paint);
+    final left = _snap(x), top = _snap(y);
+    final right = _snap(x + w), bottom = _snap(y + h);
+    _paint
+      ..color = color
+      ..style = PaintingStyle.fill;
+    c.drawOval(Rect.fromLTRB(left, top,
+        right <= left ? left + _pixel : right,
+        bottom <= top ? top + _pixel : bottom), _paint);
   }
 
   void _polygon(Canvas c, List<Offset> points, Color color) {
-    _paint.color = color;
-    final path = Path()..addPolygon(points, true);
+    _paint
+      ..color = color
+      ..style = PaintingStyle.fill;
+    final snapped = points.map((p) => Offset(_snap(p.dx), _snap(p.dy))).toList();
+    final path = Path()..addPolygon(snapped, true);
     c.drawPath(path, _paint);
   }
 
@@ -168,8 +188,8 @@ class _IslandPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Render the whole scene on a 180x180 logical pixel grid, then enlarge it.
-    // This gives every shape the same crisp, intentionally pixelated scale.
+    // Render on a low-resolution logical canvas, then enlarge with the
+    // primitives snapped to a coarse pixel grid for a deliberately chunky look.
     canvas.save();
     canvas.scale(size.width / 180, size.height / 180);
     _paintScene(canvas, const Size(180, 180));
@@ -234,6 +254,17 @@ class _IslandPainter extends CustomPainter {
       Offset(cx+r*.64,cy+r*.55),Offset(cx+r*.78,cy+r*.12),
       Offset(cx+r*.42,cy-r*.35),Offset(cx-r*.18,cy-r*.42)
     ], const Color(0xFF78C94A));
+
+    // Borde oscuro y escalonado, como en los escenarios de pixel art clásicos.
+    final edge = Path()
+      ..addPolygon(outline.map((p) => Offset(_snap(p.dx), _snap(p.dy))).toList(), true);
+    _paint
+      ..color = const Color(0xFF285D35)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = u * .72
+      ..strokeJoin = StrokeJoin.miter;
+    canvas.drawPath(edge, _paint);
+    _paint.style = PaintingStyle.fill;
 
     // Sombras de nubes: bloques translúcidos que cruzan la superficie de la isla.
     final cloudXs = <double>[
