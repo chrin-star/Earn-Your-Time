@@ -134,35 +134,124 @@ class _EarnYourIslandViewState extends State<EarnYourIslandView> {
   ]);
 }
 
-class _IslandPainter extends CustomPainter{
-  _IslandPainter(this.land,this.houses,this.trees,this.residentCount,this.layout);
-  final int land,houses,trees,residentCount,layout;
-  Offset _arrange(Offset o,double cx,double cy){final x=o.dx-cx,y=o.dy-cy;switch(layout){case 1:return Offset(cx-y,cy+x);case 2:return Offset(cx-x,cy-y);default:return o;}}
-  @override
-  void paint(Canvas canvas,Size size){
-    canvas.drawRect(Offset.zero&size,Paint()..color=const Color(0xFF75D5D5));
-    final u=size.shortestSide/16,cx=size.width/2,cy=size.height/2;
-    final wave=Paint()..color=const Color(0xFFB5EEEE)..strokeWidth=2;
-    for(double y=16;y<size.height;y+=27){for(double x=10;x<size.width;x+=48){canvas.drawLine(Offset(x,y),Offset(x+12,y),wave);}}
-    final r=(5.1+(land-1).clamp(0,5)*.62)*u;
-    final p=Path()..moveTo(cx,cy-r)..lineTo(cx+r*.8,cy-r*.7)..lineTo(cx+r,cy)..lineTo(cx+r*.75,cy+r*.7)..lineTo(cx,cy+r)..lineTo(cx-r*.8,cy+r*.7)..lineTo(cx-r,cy)..lineTo(cx-r*.8,cy-r*.7)..close();
-    canvas.drawPath(p.shift(Offset(0,u*.4)),Paint()..color=const Color(0xFFB58B55));
-    canvas.drawPath(p,Paint()..color=const Color(0xFF83C96A));
-    final tree=Paint()..color=const Color(0xFF4D9B57);
-    final spots=<Offset>[Offset(cx-r*.48,cy-r*.38),Offset(cx+r*.52,cy-r*.35),Offset(cx-r*.55,cy+r*.35),Offset(cx+r*.5,cy+r*.35),Offset(cx,cy-r*.58),Offset(cx,cy+r*.58)];
-    for(int i=0;i<trees.clamp(0,spots.length);i++){final o=_arrange(spots[i],cx,cy);canvas.drawRect(Rect.fromCenter(center:o,width:u,height:u*.8),tree);canvas.drawRect(Rect.fromLTWH(o.dx-u*.08,o.dy+u*.25,u*.16,u*.4),Paint()..color=const Color(0xFF9B653C));}
-    final homes=<Offset>[Offset(cx,cy-u*.35),Offset(cx+r*.32,cy+r*.2),Offset(cx-r*.32,cy+r*.2),Offset(cx,cy+r*.55)];
-    for(int i=0;i<houses.clamp(0,homes.length);i++){final o=_arrange(homes[i],cx,cy);canvas.drawRect(Rect.fromCenter(center:Offset(o.dx,o.dy+u*.2),width:u*1.25,height:u*.85),Paint()..color=const Color(0xFFFFE4A8));final roof=Path()..moveTo(o.dx-u*.75,o.dy)..lineTo(o.dx,o.dy-u*.65)..lineTo(o.dx+u*.75,o.dy)..close();canvas.drawPath(roof,Paint()..color=const Color(0xFFD96D57));}
-    final residentSpots=<Offset>[Offset(cx-u*1.35,cy-u*.1),Offset(cx+u*1.35,cy-u*.05),Offset(cx,cy+u*1.15)];
-    final residentColors=<Color>[const Color(0xFFE8A85B),const Color(0xFF65AD72),const Color(0xFF719ED8)];
-    for(int i=0;i<residentCount.clamp(0,residentSpots.length);i++){
-      final o=_arrange(residentSpots[i],cx,cy);final color=residentColors[i];
-      canvas.drawRect(Rect.fromCenter(center:Offset(o.dx,o.dy+u*.2),width:u*.48,height:u*.48),Paint()..color=color);
-      canvas.drawRect(Rect.fromCenter(center:Offset(o.dx,o.dy-u*.16),width:u*.32,height:u*.32),Paint()..color=const Color(0xFFFFD4AD));
-      canvas.drawRect(Rect.fromLTWH(o.dx-u*.2,o.dy-u*.35,u*.4,u*.1),Paint()..color=const Color(0xFF594B45));
+class _IslandPainter extends CustomPainter {
+  _IslandPainter(this.land, this.houses, this.trees, this.residentCount, this.layout);
+  final int land, houses, trees, residentCount, layout;
+
+  Offset _arrange(Offset o, double cx, double cy) {
+    final x = o.dx - cx, y = o.dy - cy;
+    switch (layout) {
+      case 1: return Offset(cx - y, cy + x);
+      case 2: return Offset(cx - x, cy - y);
+      default: return o;
     }
-    for(int i=0;i<9;i++){final x=cx+((i*31)%11-5)*u*.45,y=cy+((i*19)%9-4)*u*.4;canvas.drawRect(Rect.fromLTWH(x,y,u*.13,u*.13),Paint()..color=i.isEven?const Color(0xFFFFE78A):const Color(0xFFFFA6B7));}
   }
+
+  void _pixel(Canvas canvas, double x, double y, double w, double h, Color color) {
+    canvas.drawRect(Rect.fromLTWH(x, y, w, h), Paint()..color = color);
+  }
+
   @override
-  bool shouldRepaint(covariant _IslandPainter old)=>old.land!=land||old.houses!=houses||old.trees!=trees||old.residentCount!=residentCount||old.layout!=layout;
+  void paint(Canvas canvas, Size size) {
+    final u = size.shortestSide / 32;
+    final cx = size.width / 2, cy = size.height / 2;
+
+    // Agua en pequeños bloques, en lugar de líneas suaves.
+    _pixel(canvas, 0, 0, size.width, size.height, const Color(0xFF65C5CF));
+    for (int row = 0; row < (size.height / (u * 3)).ceil(); row++) {
+      for (int col = 0; col < (size.width / (u * 5)).ceil(); col++) {
+        if ((row * 7 + col * 3) % 4 == 0) {
+          _pixel(canvas, col * u * 5 + u, row * u * 3 + u,
+              u * 1.35, u * .35, const Color(0xFF9AE0D9));
+        }
+      }
+    }
+    // Sombra y arena con contorno escalonado.
+    final r = (10.2 + (land - 1).clamp(0, 5) * 1.05) * u;
+    final points = <Offset>[
+      Offset(cx - r * .25, cy - r), Offset(cx + r * .25, cy - r),
+      Offset(cx + r * .25, cy - r * .88), Offset(cx + r * .72, cy - r * .88),
+      Offset(cx + r * .72, cy - r * .62), Offset(cx + r, cy - r * .62),
+      Offset(cx + r, cy + r * .28), Offset(cx + r * .75, cy + r * .28),
+      Offset(cx + r * .75, cy + r * .72), Offset(cx + r * .25, cy + r * .72),
+      Offset(cx + r * .25, cy + r), Offset(cx - r * .38, cy + r),
+      Offset(cx - r * .38, cy + r * .82), Offset(cx - r * .78, cy + r * .82),
+      Offset(cx - r * .78, cy + r * .48), Offset(cx - r, cy + r * .48),
+      Offset(cx - r, cy - r * .48), Offset(cx - r * .72, cy - r * .48),
+      Offset(cx - r * .72, cy - r * .82), Offset(cx - r * .25, cy - r * .82),
+    ];
+    final sandPath = Path()..addPolygon(
+      points.map((p) => Offset((p.dx / u).round() * u, (p.dy / u).round() * u + u * .7)).toList(), true);
+    final grassPath = Path()..addPolygon(
+      points.map((p) => Offset((p.dx / u).round() * u, (p.dy / u).round() * u)).toList(), true);
+    canvas.drawPath(sandPath, Paint()..color = const Color(0xFFB98550));
+    canvas.drawPath(grassPath, Paint()..color = const Color(0xFF79C85F));
+
+    // Pequeños parches de hierba y tierra: cada detalle ocupa píxeles enteros.
+    final grassColors = [const Color(0xFF8BD46A), const Color(0xFF68B957), const Color(0xFFA0D978)];
+    for (int i = 0; i < 24; i++) {
+      final x = cx + ((i * 17) % 17 - 8) * u * .72;
+      final y = cy + ((i * 11) % 15 - 7) * u * .62;
+      _pixel(canvas, x, y, u * .65, u * .45, grassColors[i % grassColors.length]);
+    }
+
+    final treeSpots = <Offset>[
+      Offset(cx-r*.48,cy-r*.38), Offset(cx+r*.52,cy-r*.35),
+      Offset(cx-r*.55,cy+r*.35), Offset(cx+r*.5,cy+r*.35),
+      Offset(cx,cy-r*.58), Offset(cx,cy+r*.58),
+    ];
+    for (int i = 0; i < trees.clamp(0, treeSpots.length); i++) {
+      final o = _arrange(treeSpots[i], cx, cy);
+      _pixel(canvas, o.dx-u*.18, o.dy+u*.25, u*.38, u*.65, const Color(0xFF95603A));
+      _pixel(canvas, o.dx-u*.78, o.dy-u*.58, u*1.55, u*.82, const Color(0xFF347F49));
+      _pixel(canvas, o.dx-u*.58, o.dy-u*.9, u*1.15, u*.48, const Color(0xFF4B9D50));
+      _pixel(canvas, o.dx-u*.35, o.dy-u*.72, u*.38, u*.3, const Color(0xFF75BF58));
+      _pixel(canvas, o.dx+u*.42, o.dy-u*.28, u*.28, u*.25, const Color(0xFF65AE51));
+    }
+
+    final homes = <Offset>[
+      Offset(cx,cy-u*.35), Offset(cx+r*.32,cy+r*.2),
+      Offset(cx-r*.32,cy+r*.2), Offset(cx,cy+r*.55),
+    ];
+    for (int i = 0; i < houses.clamp(0, homes.length); i++) {
+      final o = _arrange(homes[i], cx, cy);
+      _pixel(canvas, o.dx-u*.68, o.dy-u*.05, u*1.36, u*.95, const Color(0xFFF4D79A));
+      _pixel(canvas, o.dx-u*.78, o.dy-u*.35, u*1.56, u*.42, const Color(0xFFB94F49));
+      _pixel(canvas, o.dx-u*.58, o.dy-u*.62, u*1.16, u*.3, const Color(0xFFD66A55));
+      _pixel(canvas, o.dx-u*.18, o.dy+u*.35, u*.36, u*.55, const Color(0xFF98613F));
+      _pixel(canvas, o.dx-u*.5, o.dy+u*.05, u*.28, u*.28, const Color(0xFF79B9C4));
+      _pixel(canvas, o.dx+u*.22, o.dy+u*.05, u*.28, u*.28, const Color(0xFF79B9C4));
+    }
+
+    final residentSpots = <Offset>[
+      Offset(cx-u*1.35,cy-u*.1), Offset(cx+u*1.35,cy-u*.05),
+      Offset(cx,cy+u*1.15),
+    ];
+    final residentColors = <Color>[
+      const Color(0xFFE8A85B), const Color(0xFF65AD72), const Color(0xFF719ED8),
+    ];
+    for (int i = 0; i < residentCount.clamp(0, residentSpots.length); i++) {
+      final o = _arrange(residentSpots[i], cx, cy);
+      final color = residentColors[i];
+      _pixel(canvas, o.dx-u*.25, o.dy+u*.05, u*.5, u*.52, color);
+      _pixel(canvas, o.dx-u*.19, o.dy-u*.35, u*.38, u*.38, const Color(0xFFFFD4AD));
+      _pixel(canvas, o.dx-u*.22, o.dy-u*.42, u*.44, u*.13, const Color(0xFF594B45));
+      _pixel(canvas, o.dx-u*.1, o.dy-u*.22, u*.07, u*.07, const Color(0xFF493B36));
+      _pixel(canvas, o.dx+u*.07, o.dy-u*.22, u*.07, u*.07, const Color(0xFF493B36));
+    }
+
+    // Flores y pequeñas piedras decorativas.
+    for (int i = 0; i < 12; i++) {
+      final x = cx + ((i * 13) % 13 - 6) * u * .72;
+      final y = cy + ((i * 7) % 11 - 5) * u * .62;
+      final color = i.isEven ? const Color(0xFFFFE78A) : const Color(0xFFFFA6B7);
+      _pixel(canvas, x, y, u*.22, u*.22, color);
+      if (i % 3 == 0) _pixel(canvas, x+u*.22, y+u*.12, u*.16, u*.16, const Color(0xFFFFF1C2));
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _IslandPainter old) =>
+      old.land != land || old.houses != houses || old.trees != trees ||
+      old.residentCount != residentCount || old.layout != layout;
 }
