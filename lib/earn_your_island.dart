@@ -12,7 +12,7 @@ class EarnYourIslandView extends StatefulWidget {
 
 class _EarnYourIslandViewState extends State<EarnYourIslandView> {
   static const _channel = MethodChannel('focusfeed/island');
-  int coins=0, energy=0, claimed=0, lastIncome=DateTime.now().millisecondsSinceEpoch;
+  int coins=40, energy=0, claimed=0, lastIncome=DateTime.now().millisecondsSinceEpoch;
   int land=1, houses=0, trees=1;
   bool loaded=false, busy=false;
   Timer? ticker;
