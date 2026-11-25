@@ -11,7 +11,7 @@ import 'history_view.dart';
 import 'rewards.dart';
 import 'session_controller.dart';
 import 'settings.dart';
-import 'earn_your_island.dart';
+import 'earn_your_vine.dart';
 
 ThemeData _buildAppTheme(Brightness brightness) {
   final scheme = ColorScheme.fromSeed(
@@ -310,7 +310,7 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
                     'Gestiona tus aplicaciones',
                     strings.text('Foco'),
                     'Tu progreso',
-                    'Tu propia isla',
+                    'Tu enredadera',
                     strings.text('Ajustes'),
                   ][_index],
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -374,7 +374,7 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
                 ],
               ),
             ),
-          4 => EarnYourIslandView(productiveSeconds: _earnTime.totalProductiveSeconds),
+          4 => EarnYourVineView(productiveSeconds: _earnTime.totalProductiveSeconds),
           _ => SettingsView(controller: widget.settings, notificationsEnabled: s.notificationsEnabled, onConfigureNotifications: c.busy ? null : c.notifications),
         },
       ),
@@ -405,7 +405,7 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
           const NavigationDestination(
             icon: Icon(Icons.park_outlined),
             selectedIcon: Icon(Icons.park),
-            label: 'Isla',
+            label: 'Planta',
           ),
           NavigationDestination(
             icon: const Icon(Icons.settings_outlined),
