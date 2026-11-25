@@ -26,11 +26,8 @@ class _EarnYourVineViewState extends State<EarnYourVineView> {
 
   void _followTip() {
     if (!_scroll.hasClients) return;
-    final tipY = _lastWorldHeight - 118 - (105 + math.sqrt(_lastHours) * 155);
-    final target = (tipY - _lastViewportHeight * .42)
-        .clamp(0.0, _scroll.position.maxScrollExtent).toDouble();
     _scroll.animateTo(
-      target,
+      0,
       duration: const Duration(milliseconds: 850),
       curve: Curves.easeInOutCubic,
     );
@@ -48,8 +45,7 @@ class _EarnYourVineViewState extends State<EarnYourVineView> {
     final stage = _stageFor(hours);
     final next = _nextMilestone(hours);
     final remaining = next == null ? null : ((next - hours) * 3600).ceil();
-    final worldHeight = (760 + (100 + math.sqrt(hours) * 155) * 1.35)
-        .clamp(760.0, 5600.0).toDouble();
+    final growth = _vineGrowth(widget.productiveSeconds);
     return Column(
       children: [
         Padding(
@@ -101,11 +97,12 @@ class _EarnYourVineViewState extends State<EarnYourVineView> {
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   _lastViewportHeight = constraints.maxHeight;
+                  final worldHeight = math.max(constraints.maxHeight, growth + 160);
                   _lastWorldHeight = worldHeight;
                   _lastHours = hours;
                   final painter = _VineWorldPainter(
                     hours: hours,
-                    worldHeight: worldHeight,
+                    growth: growth,
                   );
                   final world = SizedBox(
                     width: constraints.maxWidth,
@@ -228,218 +225,282 @@ class _VineStage {
   final String subtitle;
 }
 
+double _vineGrowth(int productiveSeconds) {
+  // Logarithmic height keeps the world growing for years without an
+  // unmanageably large canvas. Early productive time is deliberately dramatic.
+  return 80 + 850 * math.log(1 + productiveSeconds / 60);
+}
+
 class _VineWorldPainter extends CustomPainter {
-  _VineWorldPainter({required this.hours, required this.worldHeight});
+  _VineWorldPainter({required this.hours, required this.growth});
   final double hours;
-  final double worldHeight;
-  final Paint _p = Paint()..isAntiAlias = true;
+  final double growth;
+  final Paint _paint = Paint()..isAntiAlias = true;
 
   static const _milestones = [0.0, 2.0, 8.0, 25.0, 60.0, 120.0, 250.0];
-  static const _palettes = [
+  static const _sky = [
     [Color(0xFF101A38), Color(0xFF263B65)],
-    [Color(0xFF453B70), Color(0xFFF2A16D)],
-    [Color(0xFF75C9E8), Color(0xFFB8E9D1)],
+    [Color(0xFF493C68), Color(0xFFF3A06D)],
+    [Color(0xFF72C8E8), Color(0xFFB8E9D1)],
     [Color(0xFF55A9D5), Color(0xFFB5E8F4)],
     [Color(0xFF276C9E), Color(0xFF173B70)],
     [Color(0xFF101A3D), Color(0xFF30245F)],
     [Color(0xFF171A43), Color(0xFF523A79)],
   ];
 
-  Color _mix(Color a, Color b, double t) => Color.lerp(a, b, t.clamp(0.0, 1.0))!;
-
-
-
-  void _fill(Canvas c, Rect r, Color color) {
-    _p..shader = null..color = color..style = PaintingStyle.fill;
-    c.drawRect(r, _p);
-  }
+  Color _mix(Color a, Color b, double t) =>
+      Color.lerp(a, b, t.clamp(0.0, 1.0))!;
 
   void _oval(Canvas c, Rect r, Color color) {
-    _p..shader = null..color = color..style = PaintingStyle.fill;
-    c.drawOval(r, _p);
+    _paint
+      ..shader = null
+      ..color = color
+      ..style = PaintingStyle.fill;
+    c.drawOval(r, _paint);
   }
 
-  void _path(Canvas c, Path path, Color color) {
-    _p..shader = null..color = color..style = PaintingStyle.fill;
-    c.drawPath(path, _p);
+  void _drawLeaf(Canvas c, Offset base, double angle, double scale,
+      {Color color = const Color(0xFF49A968)}) {
+    c.save();
+    c.translate(base.dx, base.dy);
+    c.rotate(angle);
+    final leaf = Path()
+      ..moveTo(0, 0)
+      ..quadraticBezierTo(12 * scale, -22 * scale, 43 * scale, -17 * scale)
+      ..quadraticBezierTo(39 * scale, 7 * scale, 0, 0
+      ..close();
+    _paint
+      ..shader = null
+      ..color = const Color(0xFF286344)
+      ..style = PaintingStyle.fill;
+    c.drawPath(leaf.shift(const Offset(0, 3)), _paint);
+    _paint.color = color;
+    c.drawPath(leaf, _paint);
+    _paint
+      ..color = const Color(0x889DE28A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(1.5, 2.5 * scale);
+    c.drawLine(Offset(4 * scale, -1 * scale),
+        Offset(34 * scale, -13 * scale), _paint);
+    _paint.style = PaintingStyle.fill;
+    c.restore();
   }
 
   @override
   void paint(Canvas canvas, Size size) {
-    final width = size.width;
-    final height = size.height;
-    final baseY = height - 118.0;
-    final growth = (105 + math.sqrt(hours) * 155).clamp(105.0, height - 260).toDouble();
-    final stageIndex = _milestones.lastIndexWhere((v) => hours >= v).clamp(0, 5).toInt();
-    final span = _milestones[stageIndex + 1] - _milestones[stageIndex];
-    final blend = ((hours - _milestones[stageIndex]) / span).clamp(0.0, 1.0);
+    final w = size.width;
+    final h = size.height;
+    final rootY = h - 86.0;
+    final tipY = rootY - growth;
+    final stage = _milestones.lastIndexWhere((v) => hours >= v).clamp(0, 5);
+    final span = _milestones[stage + 1] - _milestones[stage];
+    final blend = ((hours - _milestones[stage]) / span).clamp(0.0, 1.0);
+    final top = _mix(_sky[stage][0], _sky[stage + 1][0], blend);
+    final bottom = _mix(_sky[stage][1], _sky[stage + 1][1], blend);
 
-    final top = _mix(_palettes[stageIndex][0], _palettes[stageIndex + 1][0], blend);
-    final bottom = _mix(_palettes[stageIndex][1], _palettes[stageIndex + 1][1], blend);
-    _p.shader = LinearGradient(
-      begin: Alignment.topCenter, end: Alignment.bottomCenter,
-      colors: [top, _mix(top, bottom, .45), bottom],
+    _paint.shader = LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [top, _mix(top, bottom, .48), bottom],
     ).createShader(Offset.zero & size);
-    canvas.drawRect(Offset.zero & size, _p);
-    _p.shader = null;
+    canvas.drawRect(Offset.zero & size, _paint);
+    _paint.shader = null;
 
-    final random = math.Random(41);
+    final random = math.Random(781);
+    // The sky continues behind the entire climb, not just a small island.
     if (hours < 8) {
-      for (int i = 0; i < 95; i++) {
-        final x = random.nextDouble() * width;
-        final y = random.nextDouble() * (height * .72);
-        final radius = 0.8 + random.nextDouble() * 1.6;
-        _oval(canvas, Rect.fromCircle(center: Offset(x, y), radius: radius),
-          Colors.white.withValues(alpha: .28 + random.nextDouble() * .55));
+      for (int i = 0; i < (h / 45).ceil().clamp(30, 500); i++) {
+        final x = random.nextDouble() * w;
+        final y = random.nextDouble() * h;
+        final r = .8 + random.nextDouble() * 1.8;
+        _oval(canvas, Rect.fromCircle(center: Offset(x, y), radius: r),
+            Colors.white.withValues(alpha: .3 + random.nextDouble() * .55));
       }
       if (hours > 2) {
-        _oval(canvas, Rect.fromLTWH(width * .72, height * .12, 42, 42),
-          const Color(0xFFFFE6B0));
-        _oval(canvas, Rect.fromLTWH(width * .75, height * .105, 42, 42),
-          top);
+        _oval(canvas, Rect.fromLTWH(w * .73, tipY + 160, 100, 100),
+            const Color(0x55FFE7B2));
+        _oval(canvas, Rect.fromLTWH(w * .76, tipY + 175, 68, 68),
+            const Color(0xFFFFE6B0));
       }
     } else {
-      // Sunlight and distant atmospheric glow.
-      _oval(canvas, Rect.fromLTWH(width * .72, height * .10, 76, 76),
-        const Color(0x44FFF1C2));
-      _oval(canvas, Rect.fromLTWH(width * .77, height * .13, 42, 42),
-        const Color(0xFFFFE7A3));
+      _oval(canvas, Rect.fromLTWH(w * .70, tipY + 130, 130, 130),
+          const Color(0x44FFF1C2));
+      _oval(canvas, Rect.fromLTWH(w * .74, tipY + 150, 78, 78),
+          const Color(0xFFFFE7A3));
     }
 
     if (hours >= 25) {
-      final cloudY = height * .34;
-      for (int i = 0; i < 5; i++) {
-        final x = (i * width * .27 + (i.isEven ? 0 : width * .12)) % (width + 120) - 60;
-        _oval(canvas, Rect.fromLTWH(x, cloudY + (i % 2) * 90, 150, 34),
-          const Color(0x66FFFFFF));
-        _oval(canvas, Rect.fromLTWH(x + 30, cloudY - 15 + (i % 2) * 90, 85, 52),
-          const Color(0x77FFFFFF));
+      final cloudSpacing = 540.0;
+      for (double y = tipY + 360; y < rootY; y += cloudSpacing) {
+        final x = (math.sin(y / 700) * .25 + .5) * (w - 150);
+        _oval(canvas, Rect.fromLTWH(x, y, 150, 35),
+            const Color(0x66FFFFFF));
+        _oval(canvas, Rect.fromLTWH(x + 32, y - 24, 88, 58),
+            const Color(0x77FFFFFF));
+        _oval(canvas, Rect.fromLTWH(x + 84, y - 7, 96, 38),
+            const Color(0x66FFFFFF));
       }
-    }
-    if (hours >= 120) {
-      for (int i = 0; i < 100; i++) {
-        final x = random.nextDouble() * width;
-        final y = random.nextDouble() * height * .65;
-        final radius = .7 + random.nextDouble() * 1.5;
-        _oval(canvas, Rect.fromCircle(center: Offset(x, y), radius: radius),
-          Colors.white.withValues(alpha: .25 + random.nextDouble() * .6));
-      }
-    }
-    if (hours >= 250) {
-      _oval(canvas, Rect.fromLTWH(width * .08, height * .20, 96, 96),
-        const Color(0xFF9A8AD2));
-      _oval(canvas, Rect.fromLTWH(width * .04, height * .18, 96, 96),
-        const Color(0xFF5D6FC1));
-      _oval(canvas, Rect.fromLTWH(width * .70, height * .55, 132, 132),
-        const Color(0xFF4E9B8C));
-      _oval(canvas, Rect.fromLTWH(width * .67, height * .52, 132, 132),
-        const Color(0xFF75BBA0));
     }
 
-    // Distant floating islands, trees and cottages appear as the vine matures.
+    if (hours >= 120) {
+      for (int i = 0; i < (h / 36).ceil().clamp(30, 600); i++) {
+        final x = random.nextDouble() * w;
+        final y = random.nextDouble() * h;
+        _oval(canvas, Rect.fromCircle(
+          center: Offset(x, y), radius: .8 + random.nextDouble() * 1.7),
+          Colors.white.withValues(alpha: .25 + random.nextDouble() * .6));
+      }
+      for (double y = tipY + 700; y < rootY; y += 1900) {
+        final x = w * (.18 + (math.sin(y / 800) + 1) * .28);
+        _oval(canvas, Rect.fromLTWH(x, y, 100, 100),
+            const Color(0xFF6979C8));
+        _oval(canvas, Rect.fromLTWH(x - 10, y - 10, 100, 100),
+            const Color(0xFF9A8AD2));
+      }
+    }
+
+    // Soft distant scenery gives scale to the climb.
+    for (double y = tipY + 420; y < rootY; y += 1250) {
+      final layer = Path()
+        ..moveTo(0, y + 170)
+        ..quadraticBezierTo(w * .22, y - 30, w * .48, y + 150)
+        ..quadraticBezierTo(w * .76, y - 50, w, y + 130)
+        ..lineTo(w, y + 260)
+        ..lineTo(0, y + 260)
+        ..close();
+      _paint
+        ..color = hours >= 8
+            ? const Color(0x334B8D77)
+            : const Color(0x223D456F)
+        ..style = PaintingStyle.fill;
+      canvas.drawPath(layer, _paint);
+    }
+
+    // Main stem: broad, shaded and organic, like a giant beanstalk.
+    final stem = Path()..moveTo(w * .50, rootY);
+    const sections = 34;
+    for (int i = 1; i <= sections; i++) {
+      final t0 = (i - 1) / sections;
+      final t1 = i / sections;
+      final y0 = rootY - growth * t0;
+      final y1 = rootY - growth * t1;
+      final x0 = w * .5 + math.sin(t0 * math.pi * 5.4) * w * .115;
+      final x1 = w * .5 + math.sin(t1 * math.pi * 5.4) * w * .115;
+      stem.cubicTo(
+        x0 + math.cos(t0 * math.pi * 5.4) * w * .10, y0 - growth / sections * .32,
+        x1 - math.cos(t1 * math.pi * 5.4) * w * .10, y1 + growth / sections * .32,
+        x1, y1,
+      );
+    }
+    _paint
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..color = const Color(0xFF174D3C)
+      ..strokeWidth = 43;
+    canvas.drawPath(stem, _paint);
+    _paint
+      ..color = const Color(0xFF348653)
+      ..strokeWidth = 34;
+    canvas.drawPath(stem, _paint);
+    _paint
+      ..color = const Color(0xFF69B96B)
+      ..strokeWidth = 12;
+    canvas.drawPath(stem, _paint);
+    _paint.style = PaintingStyle.fill;
+
+    // Large side branches and paired leaves, spaced along the full plant.
+    final branchCount = (growth / 190).ceil().clamp(1, 220);
+    for (int i = 0; i < branchCount; i++) {
+      final t = (i + .5) / branchCount;
+      final y = rootY - growth * t;
+      final x = w * .5 + math.sin(t * math.pi * 5.4) * w * .115;
+      final side = i.isEven ? -1.0 : 1.0;
+      final reach = w * (.20 + .035 * math.sin(i * 2.1));
+      final branch = Path()
+        ..moveTo(x, y)
+        ..quadraticBezierTo(x + side * reach * .55, y - 18,
+            x + side * reach, y - 65);
+      _paint
+        ..color = const Color(0xFF286344)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 15
+        ..strokeCap = StrokeCap.round;
+      canvas.drawPath(branch, _paint);
+      _paint
+        ..color = const Color(0xFF58A968)
+        ..strokeWidth = 9;
+      canvas.drawPath(branch, _paint);
+      _paint.style = PaintingStyle.fill;
+      _drawLeaf(canvas, Offset(x + side * reach * .40, y - 20),
+          side * -.55, 1.05 + (i % 3) * .18,
+          color: i % 4 == 0
+              ? const Color(0xFF85CE72)
+              : const Color(0xFF49A968));
+      _drawLeaf(canvas, Offset(x + side * reach * .82, y - 58),
+          side * -.12, 1.15 + (i % 2) * .18,
+          color: const Color(0xFF63B96C));
+      if (i % 5 == 2) {
+        _drawLeaf(canvas, Offset(x - side * 8, y - 5),
+            -side * 2.1, .92, color: const Color(0xFF9BD77C));
+      }
+      if (i % 9 == 4 && hours >= 8) {
+        _oval(canvas, Rect.fromLTWH(x + side * reach, y - 84, 17, 17),
+            const Color(0xFFFFD77C));
+      }
+    }
+
+    // Small settlements and treetops appear much later along the giant vine.
     if (hours >= 8) {
-      final count = (hours / 8).floor().clamp(1, 12);
-      for (int i = 0; i < count; i++) {
-        final y = baseY - 90 - i * (growth / (count + 1));
-        final x = width * (.18 + ((i * 37) % 67) / 100);
-        _oval(canvas, Rect.fromLTWH(x - 30, y + 28, 72, 12),
-          const Color(0x44314D45));
-        _path(canvas, Path()
-          ..moveTo(x - 38, y + 12)..lineTo(x - 25, y - 8)
-          ..lineTo(x + 23, y - 8)..lineTo(x + 38, y + 12)
-          ..close(), const Color(0xFF568A53));
-        _fill(canvas, Rect.fromLTWH(x - 5, y - 32, 10, 26),
-          const Color(0xFF795239));
-        _oval(canvas, Rect.fromLTWH(x - 22, y - 62, 46, 42),
-          const Color(0xFF398B59));
-        if (i % 3 == 1) {
-          _path(canvas, Path()
-            ..moveTo(x - 19, y - 8)..lineTo(x, y - 31)
-            ..lineTo(x + 22, y - 8)..close(), const Color(0xFFCA7056));
-          _fill(canvas, Rect.fromLTWH(x - 15, y - 8, 31, 21),
-            const Color(0xFFFFE0AE));
-          _fill(canvas, Rect.fromLTWH(x - 4, y + 1, 8, 12),
-            const Color(0xFF8A6045));
+      final places = (growth / 1050).floor().clamp(1, 80);
+      for (int i = 0; i < places; i++) {
+        final t = (i + 1) / (places + 1);
+        final y = rootY - growth * t;
+        final x = w * (i.isEven ? .16 : .76);
+        _paint.color = const Color(0xFF76523C);
+        canvas.drawRect(Rect.fromLTWH(x + 12, y - 28, 9, 30), _paint);
+        _oval(canvas, Rect.fromLTWH(x - 4, y - 62, 42, 43),
+            const Color(0xFF3E965E));
+        if (i % 2 == 1) {
+          final house = Path()
+            ..moveTo(x - 5, y - 23)
+            ..lineTo(x + 16, y - 49)
+            ..lineTo(x + 39, y - 23)
+            ..close();
+          _paint.color = const Color(0xFFB95E50);
+          canvas.drawPath(house, _paint);
+          _paint.color = const Color(0xFFFFDDA9);
+          canvas.drawRect(Rect.fromLTWH(x + 1, y - 23, 30, 21), _paint);
+          _paint.color = const Color(0xFF76523C);
+          canvas.drawRect(Rect.fromLTWH(x + 12, y - 15, 8, 13), _paint);
         }
       }
     }
 
-    // The main vine winds continuously from its rooted seed to the growing tip.
-    final vine = Path()..moveTo(width * .5, baseY - 18);
-    final segments = 9;
-    for (int i = 1; i <= segments; i++) {
-      final t = i / segments;
-      final y = baseY - 18 - growth * t;
-      final x = width * .5 + math.sin(t * math.pi * 4.2) * width * .105;
-      final previousT = (i - 1) / segments;
-      final previousY = baseY - 18 - growth * previousT;
-      final previousX = width * .5 + math.sin(previousT * math.pi * 4.2) * width * .105;
-      vine.cubicTo(previousX + width * .10, previousY - growth / segments * .28,
-          x - width * .10, y + growth / segments * .28, x, y);
-    }
-    _p
-      ..shader = null
-      ..color = const Color(0xFF286344)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 15
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    canvas.drawPath(vine, _p);
-    _p
-      ..color = const Color(0xFF64B96E)
-      ..strokeWidth = 9;
-    canvas.drawPath(vine, _p);
-    _p.style = PaintingStyle.fill;
-
-    // Leaves and occasional blossoms are attached to the vine.
-    final leaves = (growth / 27).floor().clamp(2, 90);
-    for (int i = 0; i < leaves; i++) {
-      final t = (i + 1) / (leaves + 1);
-      final y = baseY - 24 - growth * t;
-      final x = width * .5 + math.sin(t * math.pi * 4.2) * width * .105;
-      final side = i.isEven ? -1.0 : 1.0;
-      canvas.save();
-      canvas.translate(x + side * 9, y);
-      canvas.rotate(side * -.48);
-      _oval(canvas, Rect.fromLTWH(side < 0 ? -28 : 0, -10, 29, 17),
-        i % 4 == 0 ? const Color(0xFF9BD77C) : const Color(0xFF4EAD68));
-      _oval(canvas, Rect.fromLTWH(side < 0 ? -23 : 5, -7, 15, 8),
-        const Color(0xFFBDE89B));
-      canvas.restore();
-      if (i % 11 == 0 && hours >= 8) {
-        _oval(canvas, Rect.fromLTWH(x + side * 25, y - 8, 9, 9),
-          const Color(0xFFFFD77C));
-      }
-    }
-
-    // The seed and a patch of living soil remain at the bottom of the journey.
-    _oval(canvas, Rect.fromLTWH(width * .18, baseY + 46, width * .64, 34),
-      const Color(0x553B3444));
-    _path(canvas, Path()
-      ..moveTo(0, baseY + 18)..quadraticBezierTo(width * .5, baseY - 4, width, baseY + 18)
-      ..lineTo(width, height)..lineTo(0, height)..close(),
-      const Color(0xFF5A493D));
-    _path(canvas, Path()
-      ..moveTo(0, baseY + 18)..quadraticBezierTo(width * .5, baseY - 5, width, baseY + 18)
-      ..lineTo(width, baseY + 40)..quadraticBezierTo(width * .5, baseY + 17, 0, baseY + 40)
-      ..close(), const Color(0xFF72A95D));
-    if (hours < 2) {
-      _oval(canvas, Rect.fromLTWH(width * .5 - 13, baseY - 24, 26, 25),
-        const Color(0xFFB98A58));
-      _oval(canvas, Rect.fromLTWH(width * .5 - 7, baseY - 22, 14, 15),
-        const Color(0xFFD7B078));
-    } else {
-      _path(canvas, Path()
-        ..moveTo(width * .5, baseY - 20)
-        ..quadraticBezierTo(width * .5 - 20, baseY - 45, width * .5 - 8, baseY - 58)
-        ..quadraticBezierTo(width * .5 + 2, baseY - 42, width * .5, baseY - 20)
-        ..close(), const Color(0xFF5EB96B));
-      _oval(canvas, Rect.fromLTWH(width * .5 - 5, baseY - 35, 10, 15),
-        const Color(0xFF9DDD82));
-    }
+    // Root mound and the first seed remain at the very bottom.
+    final mound = Path()
+      ..moveTo(0, rootY + 12)
+      ..quadraticBezierTo(w * .5, rootY - 72, w, rootY + 12)
+      ..lineTo(w, h)
+      ..lineTo(0, h)
+      ..close();
+    _paint.color = const Color(0xFF5A493D);
+    canvas.drawPath(mound, _paint);
+    final grass = Path()
+      ..moveTo(0, rootY + 12)
+      ..quadraticBezierTo(w * .5, rootY - 72, w, rootY + 12)
+      ..lineTo(w, rootY + 48)
+      ..quadraticBezierTo(w * .5, rootY - 34, 0, rootY + 48)
+      ..close();
+    _paint.color = const Color(0xFF72A95D);
+    canvas.drawPath(grass, _paint);
+    _oval(canvas, Rect.fromLTWH(w * .5 - 20, rootY - 22, 40, 38),
+        const Color(0xFF9B7046));
+    _oval(canvas, Rect.fromLTWH(w * .5 - 12, rootY - 19, 24, 24),
+        const Color(0xFFD8B078));
   }
 
   @override
   bool shouldRepaint(covariant _VineWorldPainter old) =>
-      old.hours != hours || old.worldHeight != worldHeight;
+      old.hours != hours || old.growth != growth;
 }
