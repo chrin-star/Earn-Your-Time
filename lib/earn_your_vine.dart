@@ -270,7 +270,6 @@ class _VineWorldPainter extends CustomPainter {
     final height = size.height;
     final baseY = height - 118.0;
     final growth = (105 + math.sqrt(hours) * 155).clamp(105.0, height - 260).toDouble();
-    final tipY = baseY - growth;
     final stageIndex = _milestones.lastIndexWhere((v) => hours >= v).clamp(0, 5).toInt();
     final span = _milestones[stageIndex + 1] - _milestones[stageIndex];
     final blend = ((hours - _milestones[stageIndex]) / span).clamp(0.0, 1.0);
