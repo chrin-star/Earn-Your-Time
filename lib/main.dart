@@ -374,7 +374,7 @@ class _FocusScreenState extends State<FocusScreen> with WidgetsBindingObserver {
                 ],
               ),
             ),
-          4 => EarnYourIslandView(productiveSeconds: _earnTime.value('productiveSeconds')),
+          4 => EarnYourIslandView(productiveSeconds: _earnTime.totalProductiveSeconds),
           _ => SettingsView(controller: widget.settings, notificationsEnabled: s.notificationsEnabled, onConfigureNotifications: c.busy ? null : c.notifications),
         },
       ),
