@@ -131,8 +131,8 @@ class _EarnYourIslandViewState extends State<EarnYourIslandView> {
 }
 
 class _IslandPainter extends CustomPainter{
-  _IslandPainter(this.land,this.houses,this.trees);
-  final int land,houses,trees;
+  _IslandPainter(this.land,this.houses,this.trees,this.residentCount);
+  final int land,houses,trees,residentCount;
   @override
   void paint(Canvas canvas,Size size){
     canvas.drawRect(Offset.zero&size,Paint()..color=const Color(0xFF75D5D5));
