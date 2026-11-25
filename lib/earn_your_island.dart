@@ -158,14 +158,24 @@ class _IslandPainter extends CustomPainter {
   }
 
   void _oval(Canvas c, double x, double y, double w, double h, Color color) {
+    // Pixel-cluster ellipse: no vector-smooth circles anywhere in the island.
     final left = _snap(x), top = _snap(y);
     final right = _snap(x + w), bottom = _snap(y + h);
+    final rw = (right - left).abs().clamp(_pixel, double.infinity) / 2;
+    final rh = (bottom - top).abs().clamp(_pixel, double.infinity) / 2;
+    final centerX = left + rw, centerY = top + rh;
     _paint
       ..color = color
       ..style = PaintingStyle.fill;
-    c.drawOval(Rect.fromLTRB(left, top,
-        right <= left ? left + _pixel : right,
-        bottom <= top ? top + _pixel : bottom), _paint);
+    for (double py = top; py < bottom; py += _pixel) {
+      for (double px = left; px < right; px += _pixel) {
+        final dx = (px + _pixel / 2 - centerX) / rw;
+        final dy = (py + _pixel / 2 - centerY) / rh;
+        if (dx * dx + dy * dy <= 1.0) {
+          c.drawRect(Rect.fromLTWH(px, py, _pixel, _pixel), _paint);
+        }
+      }
+    }
   }
 
   void _polygon(Canvas c, List<Offset> points, Color color) {
@@ -229,12 +239,14 @@ class _IslandPainter extends CustomPainter {
 
     // Sombra bajo la isla y costa rocosa en varios niveles.
     final shadow = outline.map((p)=>Offset(p.dx+u*.65,p.dy+u*1.25)).toList();
-    _polygon(canvas, shadow, const Color(0xFF397FAE));
-    _polygon(canvas, outline.map((p)=>Offset(p.dx,p.dy+u*.95)).toList(),
-        const Color(0xFF70452F));
-    _polygon(canvas, outline.map((p)=>Offset(p.dx,p.dy+u*.48)).toList(),
-        const Color(0xFFB97843));
-    _polygon(canvas, outline, const Color(0xFF6B9B43));
+    _polygon(canvas, shadow, const Color(0xFF1879B7));
+    _polygon(canvas, outline.map((p)=>Offset(p.dx,p.dy+u*1.18)).toList(),
+        const Color(0xFF59351F));
+    _polygon(canvas, outline.map((p)=>Offset(p.dx,p.dy+u*.88)).toList(),
+        const Color(0xFF8A4B28));
+    _polygon(canvas, outline.map((p)=>Offset(p.dx,p.dy+u*.52)).toList(),
+        const Color(0xFFC27637));
+    _polygon(canvas, outline, const Color(0xFF315F35));
 
     // Facetas claras y oscuras de los acantilados.
     for (int i=0;i<outline.length;i++) {
@@ -247,21 +259,21 @@ class _IslandPainter extends CustomPainter {
     }
 
     final grass = outline.map((p)=>Offset(p.dx,p.dy-u*.25)).toList();
-    _polygon(canvas, grass, const Color(0xFF83D34F));
+    _polygon(canvas, grass, const Color(0xFF79D92F));
     _polygon(canvas, [
       Offset(cx-r*.82,cy+r*.15),Offset(cx-r*.68,cy+r*.62),
       Offset(cx-r*.28,cy+r*.83),Offset(cx+r*.18,cy+r*.80),
       Offset(cx+r*.64,cy+r*.55),Offset(cx+r*.78,cy+r*.12),
       Offset(cx+r*.42,cy-r*.35),Offset(cx-r*.18,cy-r*.42)
-    ], const Color(0xFF78C94A));
+    ], const Color(0xFF69C82C));
 
     // Borde oscuro y escalonado, como en los escenarios de pixel art clásicos.
     final edge = Path()
       ..addPolygon(outline.map((p) => Offset(_snap(p.dx), _snap(p.dy))).toList(), true);
     _paint
-      ..color = const Color(0xFF285D35)
+      ..color = const Color(0xFF174F32)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = u * .72
+      ..strokeWidth = u * .92
       ..strokeJoin = StrokeJoin.miter;
     canvas.drawPath(edge, _paint);
     _paint.style = PaintingStyle.fill;
@@ -285,17 +297,29 @@ class _IslandPainter extends CustomPainter {
     canvas.restore();
 
     // Manchas de césped, pequeñas hojas y flores.
-    for(int i=0;i<58;i++){
+    // Grass texture in small, irregular clusters instead of evenly scattered dots.
+    for(int i=0;i<94;i++){
       final x=cx+(((i*37)%31)-15)*u*.57;
       final y=cy+(((i*19)%29)-14)*u*.55;
-      final col=i%4==0?const Color(0xFFA4E66B):
-          i%4==1?const Color(0xFF69B94B):const Color(0xFF8BD75A);
-      _rect(canvas,x,y,u*(.18+(i%3)*.10),u*.16,col);
-      if (i % 5 == 0) {
-        _rect(canvas, x + u * .22, y - u * .16, u * .12, u * .24,
-            const Color(0xFF559F48));
+      final col=i%5==0?const Color(0xFF9BEA49):
+          i%5==1?const Color(0xFF4DAF32):
+          i%5==2?const Color(0xFF5DBB32):const Color(0xFF8BE13A);
+      final w=u*(.22+(i%4)*.12);
+      _rect(canvas,x,y,w,u*(.12+(i%2)*.10),col);
+      if (i % 4 == 0) {
+        _rect(canvas, x + u * .20, y - u * .18, u * .14, u * .30,
+            const Color(0xFF3D9A35));
+        _rect(canvas, x + u * .42, y + u * .06, u * .14, u * .18,
+            const Color(0xFFB0E94B));
       }
     }
+    // Broad soft-looking but pixel-stepped light/shade patch in the lawn.
+    _polygon(canvas,[
+      Offset(cx-r*.58,cy+r*.12),Offset(cx-r*.40,cy-r*.10),
+      Offset(cx-r*.12,cy-r*.22),Offset(cx+r*.30,cy-r*.12),
+      Offset(cx+r*.55,cy+r*.12),Offset(cx+r*.34,cy+r*.48),
+      Offset(cx-r*.10,cy+r*.60),Offset(cx-r*.48,cy+r*.42)
+    ],const Color(0x2260A92D));
 
     // Camino de tierra con piedras individuales.
     final pathPoints=[
@@ -306,15 +330,19 @@ class _IslandPainter extends CustomPainter {
     for(int i=0;i<pathPoints.length-1;i++){
       final a=pathPoints[i],b=pathPoints[i+1];
       _polygon(canvas,[
-        Offset(a.dx-u*1.05,a.dy),Offset(a.dx+u*.82,a.dy),
-        Offset(b.dx+u*.82,b.dy),Offset(b.dx-u*.85,b.dy)
-      ],const Color(0xFFC99B63));
+        Offset(a.dx-u*1.32,a.dy),Offset(a.dx+u*1.22,a.dy),
+        Offset(b.dx+u*1.22,b.dy),Offset(b.dx-u*1.32,b.dy)
+      ],const Color(0xFFB96D35));
+      _polygon(canvas,[
+        Offset(a.dx-u*1.08,a.dy-u*.08),Offset(a.dx+u*.98,a.dy-u*.08),
+        Offset(b.dx+u*.98,b.dy-u*.08),Offset(b.dx-u*1.08,b.dy-u*.08)
+      ],const Color(0xFFD98A49));
     }
     for(int i=0;i<13;i++){
       final x=cx-r*.37+((i%3)-1)*u*.42;
       final y=cy+r*.55-i*u*.78;
-      _oval(canvas,x,y,u*.48,u*.29,const Color(0xFF8F7655));
-      _oval(canvas,x+u*.07,y-u*.04,u*.32,u*.16,const Color(0xFFE0C18A));
+      _rect(canvas,x,y,u*.42,u*.24,const Color(0xFF8E552F));
+      _rect(canvas,x+u*.08,y-u*.04,u*.30,u*.16,const Color(0xFFE8B477));
     }
 
     // Arbustos y flores en pequeños grupos.
@@ -348,18 +376,21 @@ class _IslandPainter extends CustomPainter {
           const Color(0xFF89552F));
       _rect(canvas,o.dx+u*.12,o.dy+u*.58,u*.36,u*.16,
           const Color(0xFF89552F));
-      _oval(canvas,o.dx-u*1.12,o.dy-u*1.22,u*2.25,u*1.85,
-          const Color(0xFF285F3D));
-      _oval(canvas,o.dx-u*.88,o.dy-u*1.43,u*1.82,u*1.50,
-          const Color(0xFF3D8B48));
-      _oval(canvas,o.dx-u*.55,o.dy-u*1.42,u*1.22,u*.95,
-          const Color(0xFF65B84D));
-      _oval(canvas,o.dx-u*.38,o.dy-u*1.34,u*.72,u*.48,
-          const Color(0xFF8BD45A));
-      _rect(canvas,o.dx-u*.72,o.dy-u*.65,u*.25,u*.20,
-          const Color(0xFFB0E36A));
-      _rect(canvas,o.dx+u*.48,o.dy-u*.32,u*.22,u*.20,
-          const Color(0xFF75C653));
+      // Layered square canopy: individual pixel clusters, not a round lollipop.
+      _rect(canvas,o.dx-u*.78,o.dy-u*1.32,u*1.56,u*1.52,
+          const Color(0xFF174E32));
+      _rect(canvas,o.dx-u*1.02,o.dy-u*.98,u*2.04,u*1.10,
+          const Color(0xFF246B39));
+      _rect(canvas,o.dx-u*.78,o.dy-u*1.52,u*1.56,u*.58,
+          const Color(0xFF2D7D3C));
+      _rect(canvas,o.dx-u*.48,o.dy-u*1.72,u*.98,u*.42,
+          const Color(0xFF4A9C42));
+      _rect(canvas,o.dx-u*.62,o.dy-u*1.28,u*.42,u*.32,
+          const Color(0xFF72C84A));
+      _rect(canvas,o.dx+u*.18,o.dy-u*1.02,u*.46,u*.30,
+          const Color(0xFF56AD43));
+      _rect(canvas,o.dx-u*.92,o.dy-u*.48,u*.30,u*.28,
+          const Color(0xFF3C9140));
     }
 
     // Casas: paredes con zócalo, tejado a dos aguas, chimenea y ventanas.
@@ -440,7 +471,9 @@ class _IslandPainter extends CustomPainter {
       // Brazos, torso y cuello.
       _rect(canvas,o.dx-u*.43,o.dy-u*.02,u*.18,u*.48,col);
       _rect(canvas,o.dx+u*.25,o.dy-u*.02,u*.18,u*.48,col);
-      _rect(canvas,o.dx-u*.27,o.dy-u*.10,u*.54,u*.60,col);
+      _rect(canvas,o.dx-u*.32,o.dy-u*.10,u*.64,u*.64,col);
+      _rect(canvas,o.dx-u*.26,o.dy+u*.32,u*.52,u*.10,
+          i==0?const Color(0xFFF4D16B):i==1?const Color(0xFFB5D98A):const Color(0xFFB6C8F0));
       _rect(canvas,o.dx-u*.12,o.dy-u*.20,u*.24,u*.16,
           const Color(0xFFFFC69A));
       // Cabeza, cabello, orejas y expresión.
