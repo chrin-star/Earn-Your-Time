@@ -10,7 +10,7 @@ class EarnYourIslandView extends StatefulWidget {
   State<EarnYourIslandView> createState() => _EarnYourIslandViewState();
 }
 
-class _EarnYourIslandViewState extends State<EarnYourIslandView> {
+class _EarnYourIslandViewState extends State<EarnYourIslandView> with SingleTickerProviderStateMixin {
   static const _channel = MethodChannel('focusfeed/island');
   int coins=40, energy=0, claimed=0, lastIncome=DateTime.now().millisecondsSinceEpoch;
   int land=1, houses=0, trees=1, layout=0;
@@ -22,13 +22,14 @@ class _EarnYourIslandViewState extends State<EarnYourIslandView> {
   };
   bool loaded=false, busy=false;
   Timer? ticker;
+  late final AnimationController _cloudController;
 
   @override
-  void initState(){super.initState(); _load(); ticker=Timer.periodic(const Duration(seconds:30),(_)=>_tick());}
+  void initState(){super.initState(); _cloudController=AnimationController(vsync:this,duration:const Duration(seconds:58))..repeat(); _load(); ticker=Timer.periodic(const Duration(seconds:30),(_)=>_tick());}
   @override
   void didUpdateWidget(covariant EarnYourIslandView old){super.didUpdateWidget(old);if(old.productiveSeconds!=widget.productiveSeconds)_claim();}
   @override
-  void dispose(){ticker?.cancel();super.dispose();}
+  void dispose(){ticker?.cancel();_cloudController.dispose();super.dispose();}
 
   Future<void> _load() async {
     try {
@@ -90,7 +91,7 @@ class _EarnYourIslandViewState extends State<EarnYourIslandView> {
         Expanded(child:_resource(context,'Energía',energy.toString(),Icons.bolt_rounded,const Color(0xFF42B9C5))),
       ]),
       const SizedBox(height:14),
-      AspectRatio(aspectRatio:1,child:ClipRRect(borderRadius:BorderRadius.circular(24),child:CustomPaint(painter:_IslandPainter(land,houses,trees,residents.length,layout),child:const SizedBox.expand()))),
+      AnimatedBuilder(animation:_cloudController,builder:(context,child)=>AspectRatio(aspectRatio:1,child:ClipRRect(borderRadius:BorderRadius.circular(24),child:CustomPaint(painter:_IslandPainter(land,houses,trees,residents.length,layout,_cloudController.value),child:const SizedBox.expand())))), 
       Center(child:Text('Zona $land · $houses casas · $trees árboles · ${residents.length} habitantes',style:t.textTheme.labelLarge?.copyWith(color:c.onSurfaceVariant))),
       const SizedBox(height:7),
       Center(child:OutlinedButton.icon(onPressed:busy?null:_changeLayout, icon:const Icon(Icons.swap_horiz_rounded), label:const Text('Cambiar distribución'))),
@@ -134,8 +135,9 @@ class _EarnYourIslandViewState extends State<EarnYourIslandView> {
 }
 
 class _IslandPainter extends CustomPainter {
-  _IslandPainter(this.land, this.houses, this.trees, this.residentCount, this.layout);
+  _IslandPainter(this.land, this.houses, this.trees, this.residentCount, this.layout, this.cloudPhase);
   final int land, houses, trees, residentCount, layout;
+  final double cloudPhase;
 
   final Paint _paint = Paint()..isAntiAlias = false;
 
@@ -166,6 +168,15 @@ class _IslandPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // Render the whole scene on a 180x180 logical pixel grid, then enlarge it.
+    // This gives every shape the same crisp, intentionally pixelated scale.
+    canvas.save();
+    canvas.scale(size.width / 180, size.height / 180);
+    _paintScene(canvas, const Size(180, 180));
+    canvas.restore();
+  }
+
+  void _paintScene(Canvas canvas, Size size) {
     final u = size.shortestSide / 36;
     final cx = size.width / 2, cy = size.height / 2;
     _rect(canvas, 0, 0, size.width, size.height, const Color(0xFF72D3E5));
@@ -223,6 +234,24 @@ class _IslandPainter extends CustomPainter {
       Offset(cx+r*.64,cy+r*.55),Offset(cx+r*.78,cy+r*.12),
       Offset(cx+r*.42,cy-r*.35),Offset(cx-r*.18,cy-r*.42)
     ], const Color(0xFF78C94A));
+
+    // Sombras de nubes: bloques translúcidos que cruzan la superficie de la isla.
+    final cloudXs = <double>[
+      ((cloudPhase * (size.width + 92) - 46) % (size.width + 92)) - 46,
+      (((cloudPhase + .52) % 1) * (size.width + 92) - 46) - 46,
+    ];
+    final clipPath = Path()..addPolygon(outline, true);
+    canvas.save();
+    canvas.clipPath(clipPath);
+    for (int i = 0; i < cloudXs.length; i++) {
+      final sx = cloudXs[i];
+      final sy = cy - r * (.43 - i * .10) + u * 2.2;
+      final shade = const Color(0x443B5362);
+      _rect(canvas, sx, sy, u * 4.8, u * .72, shade);
+      _rect(canvas, sx + u * .7, sy + u * .55, u * 5.2, u * .62, shade);
+      _rect(canvas, sx + u * 1.6, sy + u * 1.02, u * 3.8, u * .55, shade);
+    }
+    canvas.restore();
 
     // Manchas de césped, pequeñas hojas y flores.
     for(int i=0;i<58;i++){
@@ -415,10 +444,25 @@ class _IslandPainter extends CustomPainter {
             const Color(0xFFFFD36A));
       }
     }
+
+    // Nubes en bloques: avanzan lentamente sobre el cielo y proyectan sombras.
+    for (int i = 0; i < cloudXs.length; i++) {
+      final x = cloudXs[i];
+      final y = u * (3.2 + i * 3.0);
+      final cloud = const Color(0xFFEAF8F7);
+      final light = const Color(0xFFFFFFFF);
+      _rect(canvas, x + u * .8, y + u * .5, u * 4.8, u * .9, cloud);
+      _rect(canvas, x + u * 1.6, y, u * 2.8, u * .8, light);
+      _rect(canvas, x, y + u, u * 2.2, u * .65, cloud);
+      _rect(canvas, x + u * 3.8, y + u * .9, u * 2.4, u * .65, cloud);
+      _rect(canvas, x + u * 1.2, y + u * 1.2, u * 4.2, u * .55,
+          const Color(0xFFD1EAE8));
+    }
   }
 
   @override
   bool shouldRepaint(covariant _IslandPainter old) =>
       old.land != land || old.houses != houses || old.trees != trees ||
-      old.residentCount != residentCount || old.layout != layout;
+      old.residentCount != residentCount || old.layout != layout ||
+      old.cloudPhase != cloudPhase;
 }
