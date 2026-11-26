@@ -828,6 +828,15 @@ class _VineWorldPainter extends CustomPainter {
       }
     }
 
+    // Purchased plant cosmetics are displayed beside the growing tip as a living preview,
+    // even before the natural stage unlocks them farther down the vine.
+    if (hours < 80 && (ownedItems.contains('pink_blossoms') || ownedItems.contains('blue_blossoms'))) {
+      _drawFlower(canvas, Offset(w * .56, tipY + 18), 1.15, 0);
+    }
+    if (hours < 160 && ownedItems.contains('glowing_fruit')) {
+      _drawFruit(canvas, Offset(w * .43, tipY + 26), 1.0, 0);
+    }
+
     // Purchased butterflies can be previewed at the current growing tip too,
     // so early purchases never feel invisible while the garden matures.
     if (ownedItems.contains('butterflies') && hours < 80) {
