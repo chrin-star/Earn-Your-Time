@@ -28,6 +28,7 @@ class _EarnYourVineViewState extends State<EarnYourVineView> {
 
   int get _earnedCoins => widget.productiveSeconds ~/ 600;
   int get _coinBalance => math.max(0, _earnedCoins - _spentCoins);
+  int get _heightMeters => (850 * math.log(1 + widget.productiveSeconds / 60) / 10).floor();
 
   @override
   void initState() {
@@ -129,12 +130,32 @@ class _EarnYourVineViewState extends State<EarnYourVineView> {
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: .55), borderRadius: BorderRadius.circular(17)),
                         child: Row(children: [
-                          Container(width: 44, height: 44, decoration: BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer, borderRadius: BorderRadius.circular(14)), child: Icon(item['icon']! as IconData, color: Theme.of(context).colorScheme.primary)),
+                          Container(
+                            width: 66, height: 66,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [Theme.of(context).colorScheme.primaryContainer, Theme.of(context).colorScheme.secondaryContainer],
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Center(child: Icon(
+                              item['icon']! as IconData,
+                              size: 35,
+                              color: id == 'pink_blossoms' ? const Color(0xFFD95F98)
+                                : id == 'blue_blossoms' ? const Color(0xFF4789C8)
+                                : id == 'butterflies' ? const Color(0xFF9A6CC8)
+                                : const Color(0xFFD5A72F),
+                            )),
+                          ),
                           const SizedBox(width: 12),
                           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Text(item['name']! as String, style: const TextStyle(fontWeight: FontWeight.w700)),
                             const SizedBox(height: 2),
                             Text(item['description']! as String, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                            const SizedBox(height: 3),
+                            Text(owned ? 'Adquirido · aparecerá al desbloquear su etapa' : 'Vista previa del adorno', style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w600)),
                           ])),
                           const SizedBox(width: 8),
                           if (owned)
@@ -338,9 +359,7 @@ class _EarnYourVineViewState extends State<EarnYourVineView> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  remaining == null
-                    ? 'Tu enredadera sigue creciendo. No hay un límite.'
-                    : 'Próximo cambio de entorno en ${_formatTime(remaining)}',
+                  'Altura: $_heightMeters m  ·  ${remaining == null ? 'Crecimiento ilimitado' : 'Próximo entorno en ${_formatTime(remaining)}'}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w600,
@@ -524,6 +543,7 @@ class _VineWorldPainter extends CustomPainter {
     final h = size.height;
     final rootY = h - 86.0;
     final tipY = rootY - growth;
+    final heightMeters = (growth - 80).clamp(0.0, double.infinity) / 10;
     final stage = _milestones.lastIndexWhere((v) => hours >= v).clamp(0, _milestones.length - 2).toInt();
     final span = _milestones[stage + 1] - _milestones[stage];
     final blend = ((hours - _milestones[stage]) / span).clamp(0.0, 1.0);
@@ -711,6 +731,29 @@ class _VineWorldPainter extends CustomPainter {
     }
     _paint.style = PaintingStyle.fill;
 
+    // Height markers: one discreet label every 200 metres.
+    final markerCount = (heightMeters / 200).floor().clamp(0, 500);
+    for (int marker = 1; marker <= markerCount; marker++) {
+      final markerMeters = marker * 200;
+      final markerY = rootY - markerMeters * 10;
+      if (markerY < 12 || markerY > h - 12) continue;
+      final vineX = w * .5 + math.sin((markerMeters * 10 / growth) * math.pi * 5.4) * w * .115;
+      final side = vineX < w * .5 ? 1.0 : -1.0;
+      _paint
+        ..shader = null
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.4
+        ..color = const Color(0x99FFFFFF);
+      canvas.drawLine(Offset(vineX + side * 25, markerY), Offset(vineX + side * 54, markerY), _paint);
+      _paint.style = PaintingStyle.fill;
+      final label = TextPainter(
+        text: TextSpan(text: '${markerMeters} m', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700, shadows: [Shadow(color: Color(0xAA102A31), blurRadius: 4)])),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      final labelX = side > 0 ? vineX + 60 : vineX - 60 - label.width;
+      label.paint(canvas, Offset(labelX, markerY - label.height / 2));
+    }
+
     // Large side branches and paired leaves, spaced along the full plant.
     final branchCount = hours < 1
         ? 0
@@ -783,6 +826,17 @@ class _VineWorldPainter extends CustomPainter {
       if (hours >= 800 && i % 17 == 9) {
         _drawFruit(canvas, Offset(x + side * reach * .98, y - 89), 1.04, 3);
       }
+    }
+
+    // Purchased butterflies can be previewed at the current growing tip too,
+    // so early purchases never feel invisible while the garden matures.
+    if (ownedItems.contains('butterflies') && hours < 80) {
+      final flutter = Offset(w * .67, tipY + 36);
+      _oval(canvas, Rect.fromCenter(center: flutter.translate(-5, 0), width: 11, height: 8), const Color(0xFFFFD36E));
+      _oval(canvas, Rect.fromCenter(center: flutter.translate(5, 0), width: 11, height: 8), const Color(0xFFFFA6C8));
+      _paint..color = const Color(0xFF5A4638)..strokeWidth = 1.4..style = PaintingStyle.stroke;
+      canvas.drawLine(flutter.translate(0, -3), flutter.translate(0, 4), _paint);
+      _paint.style = PaintingStyle.fill;
     }
 
     // Small settlements and treetops appear much later along the giant vine.
