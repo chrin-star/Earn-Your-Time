@@ -283,8 +283,6 @@ class _EarnYourVineViewState extends State<EarnYourVineView> with SingleTickerPr
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final worldHeight = math.max(constraints.maxHeight, growth + 160).toDouble();
-                  final painter = _VineWorldPainter(
-                    hours: hours,
                   final world = SizedBox(
                     width: constraints.maxWidth,
                     height: worldHeight,
