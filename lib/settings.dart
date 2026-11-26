@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'focus_strings.dart';
+import 'permissions.dart';
 
 /// Preferência de tema persistida no armazenamento nativo.
 enum AppThemeMode {
@@ -22,6 +23,8 @@ enum AppThemeMode {
 }
 
 abstract class SettingsPlatform {
+  Future<bool> createBackup();
+  Future<bool> restoreBackup();
   Future<String?> loadTheme();
   Future<void> saveTheme(String value);
   Future<String?> loadLanguage();
@@ -30,6 +33,16 @@ abstract class SettingsPlatform {
 
 class NativeSettingsPlatform implements SettingsPlatform {
   static const channel = MethodChannel('focusfeed/settings');
+  // Backup and restore are implemented by MainActivity's earn_time channel.
+  static const backupChannel = MethodChannel('focusfeed/earn_time');
+
+  @override
+  Future<bool> createBackup() async =>
+      await backupChannel.invokeMethod<bool>('createBackup') ?? false;
+
+  @override
+  Future<bool> restoreBackup() async =>
+      await backupChannel.invokeMethod<bool>('restoreBackup') ?? false;
 
   @override
   Future<String?> loadTheme() => channel.invokeMethod<String>('loadTheme');
@@ -53,7 +66,7 @@ class SettingsController extends ChangeNotifier {
 
   final SettingsPlatform _platform;
   AppThemeMode _mode = AppThemeMode.system;
-  AppLanguage _language = AppLanguage.portuguese;
+  AppLanguage _language = AppLanguage.spanish;
   bool _disposed = false;
   bool _languageChosen = false;
 
@@ -157,134 +170,219 @@ class SettingsView extends StatelessWidget {
     }
   }
 
-  const SettingsView({super.key, required this.controller});
+  const SettingsView({super.key, required this.controller, this.notificationsEnabled = false, this.onConfigureNotifications});
 
   final SettingsController controller;
+  final bool notificationsEnabled;
+  final VoidCallback? onConfigureNotifications;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final strings = context.strings;
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (context, _) => ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          Text(strings.text('Idioma'), style: theme.textTheme.titleMedium),
-          RadioGroup<AppLanguage>(
-            groupValue: controller.language,
-            onChanged: (value) {
-              if (value != null) controller.setLanguage(value);
-            },
-            child: Column(
-              children: [
-                for (final language in AppLanguage.values)
-                  RadioListTile<AppLanguage>(
-                    value: language,
-                    title: Text(language.label),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(strings.text('Aparência'), style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Text(
-            strings.text(
-              'Escolha o tema do aplicativo. O modo automático acompanha o sistema.',
-            ),
-          ),
-          const SizedBox(height: 12),
-          SegmentedButton<AppThemeMode>(
-            key: const Key('themeMode'),
+    final colors = theme.colorScheme;
+
+    Widget section({
+      required IconData icon,
+      required String title,
+      required Widget child,
+    }) => Card(
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: colors.primaryContainer,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: colors.onPrimaryContainer, size: 19),
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800))),
+            ]),
+            const SizedBox(height: 14),
+            child,
+          ],
+        ),
+      ),
+    );
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(18, 12, 18, 32),
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 4, 4, 12),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Personaliza tu experiencia', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+            const SizedBox(height: 4),
+            Text('Ajusta Earn Your Time a tu manera.', style: theme.textTheme.bodyMedium?.copyWith(color: colors.onSurfaceVariant)),
+          ]),
+        ),
+        section(
+          icon: Icons.translate_rounded,
+          title: strings.text('Idioma'),
+          child: SegmentedButton<AppLanguage>(
             showSelectedIcon: false,
             segments: [
-              ButtonSegment(
-                value: AppThemeMode.light,
-                icon: const Icon(Icons.light_mode_outlined),
-                label: Text(strings.text('Claro')),
-              ),
-              ButtonSegment(
-                value: AppThemeMode.dark,
-                icon: const Icon(Icons.dark_mode_outlined),
-                label: Text(strings.text('Escuro')),
-              ),
-              ButtonSegment(
-                value: AppThemeMode.system,
-                icon: const Icon(Icons.brightness_auto_outlined),
-                label: Text(strings.text('Auto')),
-              ),
+              for (final language in AppLanguage.values)
+                ButtonSegment(value: language, label: Text(language.label)),
             ],
-            selected: {controller.mode},
-            onSelectionChanged: (selection) =>
-                controller.setMode(selection.first),
+            selected: {controller.language},
+            onSelectionChanged: (selection) => controller.setLanguage(selection.first),
           ),
-          const SizedBox(height: 24),
-          Text(
-            strings.text('Desenvolvedor'),
-            style: theme.textTheme.titleMedium,
+        ),
+        const SizedBox(height: 12),
+        section(
+          icon: Icons.palette_outlined,
+          title: strings.text('Aparência'),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(strings.text('Escolha o tema do aplicativo. O modo automático acompanha o sistema.'), style: theme.textTheme.bodyMedium?.copyWith(color: colors.onSurfaceVariant)),
+            const SizedBox(height: 12),
+            SegmentedButton<AppThemeMode>(
+              key: const Key('themeMode'),
+              showSelectedIcon: false,
+              segments: [
+                ButtonSegment(value: AppThemeMode.light, icon: const Icon(Icons.light_mode_outlined), label: Text(strings.text('Claro'))),
+                ButtonSegment(value: AppThemeMode.dark, icon: const Icon(Icons.dark_mode_outlined), label: Text(strings.text('Escuro'))),
+                ButtonSegment(value: AppThemeMode.system, icon: const Icon(Icons.brightness_auto_outlined), label: Text(strings.text('Auto'))),
+              ],
+              selected: {controller.mode},
+              onSelectionChanged: (selection) => controller.setMode(selection.first),
+            ),
+          ]),
+        ),
+        const SizedBox(height: 12),
+        section(
+          icon: Icons.notifications_active_outlined,
+          title: 'Notificaciones y permisos',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.notifications_outlined),
+                title: Text(notificationsEnabled ? 'Notificaciones activadas' : 'Notificaciones desactivadas'),
+                subtitle: const Text('Avisos al terminar el foco y la pausa.'),
+                trailing: TextButton(onPressed: onConfigureNotifications, child: const Text('Configurar')),
+              ),
+              const Divider(height: 18),
+              const PermissionsPanel(),
+            ],
           ),
-          const SizedBox(height: 8),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Valdenor Tavares', style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 4),
-                  const SelectableText('valdenor.sa@proton.me'),
-                  const SizedBox(height: 12),
-                  FilledButton.tonalIcon(
-                    onPressed: () async {
-                      await Clipboard.setData(
-                        const ClipboardData(text: 'valdenor.sa@proton.me'),
-                      );
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(strings.text('E-mail copiado.')),
-                          ),
-                        );
-                      }
-                    },
-                    icon: const Icon(Icons.copy),
-                    label: Text(strings.text('Copiar e-mail')),
+        ),
+        const SizedBox(height: 12),
+        section(
+          icon: Icons.battery_charging_full_rounded,
+          title: strings.text('Mantén el seguimiento activo'),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Importante en Xiaomi y Redmi', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            Text('Para evitar que el sistema pause el conteo: abre Ajustes > Aplicaciones > Administrar aplicaciones > Earn Your Time > Ahorro de batería y selecciona «Sin restricciones». Si tu teléfono ofrece «Inicio automático», permite también Earn Your Time.'),
+            const SizedBox(height: 8),
+            Text('En otros Android, permite el uso en segundo plano si el sistema lo solicita. No fuerces el cierre de la app ni retires los permisos de acceso al uso o de superposición mientras quieras que funcione. Android puede limitar los servicios en segundo plano según el fabricante.', style: theme.textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant)),
+          ]),
+        ),
+        const SizedBox(height: 12),
+        section(
+          icon: Icons.backup_outlined,
+          title: 'Copia de seguridad',
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Protege tu racha, historial, saldo y configuración guardando una copia en tu teléfono o en Google Drive.', style: theme.textTheme.bodyMedium?.copyWith(color: colors.onSurfaceVariant)),
+            const SizedBox(height: 14),
+            SizedBox(width: double.infinity, child: FilledButton.icon(
+              icon: const Icon(Icons.save_alt_rounded),
+              label: const Text('Crear copia de seguridad'),
+              onPressed: () async {
+                try {
+                  final ok = await NativeSettingsPlatform().createBackup();
+                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok ? 'Copia guardada.' : 'No se creó la copia.')));
+                } catch (e) {
+                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al crear la copia: $e')));
+                }
+              },
+            )),
+            const SizedBox(height: 8),
+            SizedBox(width: double.infinity, child: OutlinedButton.icon(
+              icon: const Icon(Icons.settings_backup_restore_rounded),
+              label: const Text('Restaurar copia de seguridad'),
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (dialogContext) => AlertDialog(
+                    title: const Text('¿Restaurar copia?'),
+                    content: const Text('Esto reemplazará el progreso y los ajustes actuales con los datos del archivo elegido. No se puede deshacer.'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancelar')),
+                      FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Continuar')),
+                    ],
                   ),
-                ],
-              ),
+                );
+                if (confirm != true) return;
+                try {
+                  final ok = await NativeSettingsPlatform().restoreBackup();
+                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok ? 'Copia restaurada. Reinicia Earn Your Time para actualizar todos los datos.' : 'No se restauró la copia.')));
+                } catch (e) {
+                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al restaurar: $e')));
+                }
+              },
+            )),
+          ]),
+        ),
+        const SizedBox(height: 12),
+        section(
+          icon: Icons.person_outline_rounded,
+          title: strings.text('Desenvolvedor'),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Valdenor Tavares', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 4),
+            const SelectableText('valdenor.sa@proton.me'),
+            const SizedBox(height: 12),
+            SizedBox(width: double.infinity, child: FilledButton.tonalIcon(
+              onPressed: () async {
+                await Clipboard.setData(const ClipboardData(text: 'valdenor.sa@proton.me'));
+                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(strings.text('E-mail copiado.'))));
+              },
+              icon: const Icon(Icons.copy_rounded),
+              label: Text(strings.text('Copiar e-mail')),
+            )),
+          ]),
+        ),
+        const SizedBox(height: 12),
+        section(
+          icon: Icons.favorite_outline_rounded,
+          title: 'Apoya al desarrollador',
+          child: Column(children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.copy_rounded),
+              title: const Text('Copiar clave Pix'),
+              onTap: () => _copyPixKey(context),
             ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            strings.text('Apoie o desenvolvedor'),
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          TextButton.icon(
-            onPressed: () => _copyPixKey(context),
-            icon: const Icon(Icons.copy),
-            label: Text(strings.text('Copiar chave Pix')),
-          ),
-          TextButton.icon(
-            onPressed: () => _openSponsors(context),
-            icon: const Icon(Icons.open_in_new),
-            label: const Text('GitHub Sponsors'),
-          ),
-          const SizedBox(height: 24),
-          Text(strings.text('Sobre'), style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                strings.text(
-                  'FocusFeed é um Pomodoro offline com bloqueio de apps e recompensa proporcional. Não há conta, anúncios, analytics nem conexão de rede em tempo de execução. Todo o progresso fica no aparelho.',
-                ),
-              ),
+            const Divider(height: 1),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.open_in_new_rounded),
+              title: const Text('GitHub Sponsors'),
+              onTap: () => _openSponsors(context),
             ),
+          ]),
+        ),
+        const SizedBox(height: 12),
+        section(
+          icon: Icons.info_outline_rounded,
+          title: strings.text('Sobre'),
+          child: Text(
+            strings.text('Earn Your Time registra o uso das aplicações que você classifica, transforma tempo produtivo em saldo e ajuda a limitar apps de distração. O acompanhamento é local e o progresso fica salvo no aparelho.'),
+            style: theme.textTheme.bodyMedium?.copyWith(color: colors.onSurfaceVariant),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

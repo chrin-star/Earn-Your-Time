@@ -5,9 +5,9 @@ import android.content.res.Configuration
 import java.util.Locale
 
 object AppLanguage {
-    const val DEFAULT_TAG = "pt-BR"
+    const val DEFAULT_TAG = "es-ES"
     const val KEY = "language"
-    val supported = setOf(DEFAULT_TAG, "en-US", "es-ES")
+    val supported = setOf(DEFAULT_TAG, "pt-BR", "en-US")
 
     fun tag(context: Context): String {
         val saved = context.getSharedPreferences("focusfeed_options", Context.MODE_PRIVATE)

@@ -27,7 +27,8 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // Compatible with Android 7.0+; Redmi 13C (Android 15) is supported.
+        minSdk = 24
         targetSdk = flutter.targetSdkVersion
         // Base version from pubspec.yaml; split APKs use base * 10 + ABI code.
         versionCode = flutter.versionCode
@@ -35,7 +36,7 @@ android {
     }
 
     signingConfigs {
-        if (releaseKeysFile.exists()) create("release") {
+        if (releaseKeysFile.exists()) create("stable") {
             keyAlias = releaseKeys.getProperty("keyAlias")
             keyPassword = releaseKeys.getProperty("keyPassword")
             storeFile = file(releaseKeys.getProperty("storeFile"))
@@ -46,9 +47,11 @@ android {
         getByName("debug") {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            // Use the same long-lived key for every debug update in CI.
+            if (releaseKeysFile.exists()) signingConfig = signingConfigs.getByName("stable")
         }
         release {
-            signingConfig = if (!unsignedBuild && releaseKeysFile.exists()) signingConfigs.getByName("release") else null
+            signingConfig = if (!unsignedBuild && releaseKeysFile.exists()) signingConfigs.getByName("stable") else null
             if (!releaseKeysFile.exists() && !unsignedBuild && gradle.startParameter.taskNames.any { it.contains("release", ignoreCase = true) }) {
                 throw GradleException("Configure .private/key.properties ou FOCUSFEED_UNSIGNED=1 para builds F-Droid.")
             }

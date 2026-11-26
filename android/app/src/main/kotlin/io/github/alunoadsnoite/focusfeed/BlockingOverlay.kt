@@ -18,8 +18,6 @@ class BlockingOverlay(private val context: Context) {
     companion object { @Volatile var visible = false; private set }
     @Suppress("DEPRECATION")
     private val type = if (Build.VERSION.SDK_INT >= 26) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else WindowManager.LayoutParams.TYPE_PHONE
-    // A Service is not a visual Context. Use a display/window context on modern
-    // Android so native widgets receive the correct window resources and token.
     private val viewContext = if (Build.VERSION.SDK_INT >= 30) {
         val display = (context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager).getDisplay(Display.DEFAULT_DISPLAY)
         context.createDisplayContext(display).createWindowContext(type, null)
@@ -35,13 +33,33 @@ class BlockingOverlay(private val context: Context) {
         val message = detail.ifEmpty {
             if (noBalance) strings.getString(R.string.block_empty) else ""
         }
+        showContent(
+            strings.getString(R.string.block_heading),
+            message,
+            strings.getString(R.string.block_back),
+            strings.getString(R.string.block_accessibility, message),
+        )
+    }
+
+    fun showEarnTime() {
+        val strings = AppLanguage.resources(context)
+        val message = strings.getString(R.string.earn_block_detail)
+        showContent(
+            strings.getString(R.string.earn_block_heading),
+            message,
+            strings.getString(R.string.earn_block_back),
+            strings.getString(R.string.earn_block_accessibility, message),
+        )
+    }
+
+    private fun showContent(heading: String, message: String, backLabel: String, accessibility: String) {
         if (view != null) {
-            headingView?.text = strings.getString(R.string.block_heading)
-            backButton?.text = strings.getString(R.string.block_back)
-            backButton?.contentDescription = strings.getString(R.string.block_back)
+            headingView?.text = heading
+            backButton?.text = backLabel
+            backButton?.contentDescription = backLabel
             detailView?.text = message
             detailView?.visibility = if (message.isEmpty()) View.GONE else View.VISIBLE
-            view?.contentDescription = strings.getString(R.string.block_accessibility, message)
+            view?.contentDescription = accessibility
             return
         }
         val layout = LinearLayout(viewContext).apply {
@@ -50,16 +68,16 @@ class BlockingOverlay(private val context: Context) {
             setPadding(32, 64, 32, 64)
             setBackgroundColor(Color.rgb(12, 46, 44))
         }
-        val heading = TextView(viewContext).apply {
-            this.text = strings.getString(R.string.block_heading)
+        val headingText = TextView(viewContext).apply {
+            text = heading
             textSize = 26f
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
         }
-        headingView = heading
-        layout.addView(heading, LinearLayout.LayoutParams(-1, -2))
+        headingView = headingText
+        layout.addView(headingText, LinearLayout.LayoutParams(-1, -2))
         val detailText = TextView(viewContext).apply {
-            this.text = message
+            text = message
             textSize = 16f
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
@@ -68,10 +86,9 @@ class BlockingOverlay(private val context: Context) {
         layout.addView(detailText, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 24 })
         detailView = detailText
         val back = Button(viewContext).apply {
-            this.text = strings.getString(R.string.block_back)
-            contentDescription = strings.getString(R.string.block_back)
+            text = backLabel
+            contentDescription = backLabel
             setOnClickListener {
-                // Launch from the user's explicit tap, never automatically.
                 try {
                     context.startActivity(Intent(context, MainActivity::class.java).apply {
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -84,11 +101,11 @@ class BlockingOverlay(private val context: Context) {
         }
         backButton = back
         layout.addView(back, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 32 })
-        layout.contentDescription = strings.getString(R.string.block_accessibility, message)
+        layout.contentDescription = accessibility
         val params = WindowManager.LayoutParams(-1, -1, type,
             WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT)
-        params.title = "FocusFeedBlocker"
+        params.title = "EarnYourTimeBlocker"
         manager.addView(layout, params)
         view = layout
         visible = true

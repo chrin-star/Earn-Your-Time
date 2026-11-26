@@ -1,13 +1,21 @@
 package io.github.alunoadsnoite.focusfeed
 
 import android.Manifest
+import android.app.Activity
+import android.app.usage.UsageStatsManager
+import org.json.JSONArray
+import org.json.JSONObject
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import java.io.ByteArrayOutputStream
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import java.util.Calendar
 import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -16,8 +24,156 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     private val main = Handler(Looper.getMainLooper())
     private var notificationResult: MethodChannel.Result? = null
+    private var backupResult: MethodChannel.Result? = null
+    private val backupCreateCode = 7101
+    private val backupRestoreCode = 7102
+    private val backupPrefs = listOf("earn_time_data", "focusfeed_progress", "focusfeed_options")
+    private fun awaitMonitorState(
+        expectedRunning: Boolean,
+        result: MethodChannel.Result,
+        attempts: Int = 0,
+    ) {
+        if (EarnTimeMonitorService.running == expectedRunning) {
+            result.success(true)
+        } else if (attempts >= 30) {
+            val message = if (expectedRunning) {
+                "Android no confirmó el inicio del seguimiento. Comprueba el permiso de acceso al uso y vuelve a intentarlo."
+            } else {
+                "Android todavía no confirmó que el seguimiento se haya detenido. Actualiza el estado en unos segundos."
+            }
+            result.error("monitor_state_timeout", message, null)
+        } else {
+            main.postDelayed({ awaitMonitorState(expectedRunning, result, attempts + 1) }, 100L)
+        }
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        // Remove the retired island economy data. The new vine is derived directly
+        // from lifetime productive time, so it needs no separate saved state.
+        getSharedPreferences("focusfeed_progress", MODE_PRIVATE)
+            .edit().remove("earn_your_island_state").apply()
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "focusfeed/earn_time")
+            .setMethodCallHandler { call, result ->
+                try {
+                    when (call.method) {
+                        "createBackup", "restoreBackup" -> {
+                            check(backupResult == null) { "Ya hay una operación de copia en curso." }
+                            backupResult = result
+                            val creating = call.method == "createBackup"
+                            val intent = Intent(if (creating) Intent.ACTION_CREATE_DOCUMENT else Intent.ACTION_OPEN_DOCUMENT)
+                            intent.addCategory(Intent.CATEGORY_OPENABLE)
+                            intent.type = "application/json"
+                            if (creating) intent.putExtra(Intent.EXTRA_TITLE, "EarnYourTime-backup.json")
+                            startActivityForResult(intent, if (creating) backupCreateCode else backupRestoreCode)
+                            return@setMethodCallHandler
+                        }
+                        "configure" -> {
+                            val productive = (call.argument<List<String>>("productivePackages") ?: emptyList()).toSet()
+                            val distracting = (call.argument<List<String>>("distractingPackages") ?: emptyList()).toSet()
+                            EarnTimeStore.configure(this, productive, distracting)
+                            val allowance = call.argument<Number>("dailyAllowanceSeconds")?.toLong()
+                            val numerator = call.argument<Number>("rewardNumerator")?.toLong()
+                            val denominator = call.argument<Number>("rewardDenominator")?.toLong()
+                            if (allowance != null || numerator != null || denominator != null) {
+                                val current = EarnTimeStore.settings(this)
+                                EarnTimeStore.saveSettings(this, EarnTimeSettings(
+                                    allowance ?: current.dailyAllowanceSeconds,
+                                    numerator ?: current.rewardNumerator,
+                                    denominator ?: current.rewardDenominator,
+                                ))
+                            }
+                            result.success(EarnTimeStore.snapshot(this))
+                        }
+                        "startMonitor" -> {
+                            check(NativeAccess.usage(this)) { "Activa el acceso al uso de aplicaciones." }
+                            check(android.provider.Settings.canDrawOverlays(this)) {
+                                "Activa el permiso «Mostrar sobre otras aplicaciones» para que Earn Your Time pueda bloquear las apps distractoras cuando tu saldo llegue a cero."
+                            }
+                            val intent = Intent(this, EarnTimeMonitorService::class.java)
+                            if (Build.VERSION.SDK_INT >= 26) startForegroundService(intent) else startService(intent)
+                            awaitMonitorState(true, result)
+                            return@setMethodCallHandler
+                        }
+                        "stopMonitor" -> {
+                            stopService(Intent(this, EarnTimeMonitorService::class.java))
+                            awaitMonitorState(false, result)
+                            return@setMethodCallHandler
+                        }
+                        "loadVineShop" -> {
+                            val progress = getSharedPreferences("focusfeed_progress", MODE_PRIVATE)
+                            result.success(progress.getString("earn_your_vine_shop", "{}") ?: "{}")
+                        }
+                        "saveVineShop" -> {
+                            val state = call.argument<String>("state") ?: "{}"
+                            JSONObject(state)
+                            getSharedPreferences("focusfeed_progress", MODE_PRIVATE)
+                                .edit().putString("earn_your_vine_shop", state).apply()
+                            result.success(true)
+                        }
+                        "status" -> result.success(
+                            EarnTimeStore.snapshot(this) + mapOf("monitorRunning" to EarnTimeMonitorService.running,
+                                "usagePermission" to NativeAccess.usage(this),
+                                "overlayPermission" to Settings.canDrawOverlays(this))
+                        )
+                        "appUsage" -> {
+                            check(NativeAccess.usage(this)) { "Activa el acceso al uso de aplicaciones para consultar el historial." }
+                            val categories = EarnTimeStore.categories(this)
+                            val selected = categories.first + categories.second
+                            val end = System.currentTimeMillis()
+                            val startCalendar = Calendar.getInstance().apply {
+                                timeInMillis = end
+                                set(Calendar.HOUR_OF_DAY, 0)
+                                set(Calendar.MINUTE, 0)
+                                set(Calendar.SECOND, 0)
+                                set(Calendar.MILLISECOND, 0)
+                                add(Calendar.DAY_OF_YEAR, -6)
+                            }
+                            val start = startCalendar.timeInMillis
+                            val manager = getSystemService(USAGE_STATS_SERVICE) as UsageStatsManager
+                            val usage = manager.queryAndAggregateUsageStats(start, end)
+                            val items = usage.entries
+                                // El historial solo debe mostrar aplicaciones que el usuario puede abrir.
+                                // Android también devuelve servicios internos del fabricante, que no son apps útiles para este resumen.
+                                .filter {
+                                    it.key in selected &&
+                                        it.value.totalTimeInForeground >= 60_000L &&
+                                        packageManager.getLaunchIntentForPackage(it.key) != null
+                                }
+                                .mapNotNull { (pkg, stats) ->
+                                    try {
+                                        val appInfo = packageManager.getApplicationInfo(pkg, 0)
+                                        val label = packageManager.getApplicationLabel(appInfo).toString()
+                                        val drawable = packageManager.getApplicationIcon(appInfo)
+                                        val bitmap = Bitmap.createBitmap(
+                                            drawable.intrinsicWidth.coerceIn(1, 96),
+                                            drawable.intrinsicHeight.coerceIn(1, 96),
+                                            Bitmap.Config.ARGB_8888,
+                                        )
+                                        drawable.setBounds(0, 0, bitmap.width, bitmap.height)
+                                        drawable.draw(Canvas(bitmap))
+                                        val iconStream = ByteArrayOutputStream()
+                                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, iconStream)
+                                        bitmap.recycle()
+                                        mapOf(
+                                            "package" to pkg,
+                                            "label" to label,
+                                            "icon" to iconStream.toByteArray(),
+                                            "seconds" to (stats.totalTimeInForeground / 1000L),
+                                            "category" to if (pkg in categories.first) "productive" else "distracting",
+                                        )
+                                    } catch (_: Exception) { null }
+                                }
+                                .distinctBy { it["package"] }
+                                .sortedByDescending { (it["seconds"] as Long) }
+                            result.success(mapOf("items" to items, "startTime" to start, "endTime" to end))
+                        }
+                        else -> result.notImplemented()
+                    }
+                } catch (error: Exception) {
+                    result.error("earn_time_error", error.message ?: "No se pudo actualizar Earn Your Time.", null)
+                }
+            }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "focusfeed/permissions")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -154,6 +310,78 @@ class MainActivity : FlutterActivity() {
                 }
             }
     }
+    private fun backupJson(): JSONObject {
+        EarnTimeStore.flush(this)
+        NativeSessionRepository.advance(this, forceSave = true)
+        val prefs = JSONObject()
+        backupPrefs.forEach { name ->
+            val values = JSONObject()
+            getSharedPreferences(name, MODE_PRIVATE).all.forEach { (key, value) ->
+                val entry = JSONObject()
+                when (value) {
+                    is String -> entry.put("type", "string").put("value", value)
+                    is Boolean -> entry.put("type", "boolean").put("value", value)
+                    is Int -> entry.put("type", "int").put("value", value)
+                    is Long -> entry.put("type", "long").put("value", value.toString())
+                    is Float -> entry.put("type", "float").put("value", value.toDouble())
+                    is Set<*> -> entry.put("type", "stringSet").put("value", JSONArray(value.filterIsInstance<String>()))
+                    else -> throw IllegalStateException("Tipo de dato no compatible en la copia.")
+                }
+                values.put(key, entry)
+            }
+            prefs.put(name, values)
+        }
+        return JSONObject().put("format", "earn-your-time-backup").put("version", 2).put("preferences", prefs)
+    }
+
+    private fun restoreJson(root: JSONObject) {
+        require(root.optString("format") == "earn-your-time-backup" && root.optInt("version") == 2) { "Archivo incompatible o de una versión anterior." }
+        val all = root.getJSONObject("preferences")
+        backupPrefs.forEach { name ->
+            val values = all.getJSONObject(name)
+            val editor = getSharedPreferences(name, MODE_PRIVATE).edit().clear()
+            values.keys().forEach { key ->
+                val entry = values.getJSONObject(key)
+                when (entry.getString("type")) {
+                    "string" -> editor.putString(key, entry.getString("value"))
+                    "boolean" -> editor.putBoolean(key, entry.getBoolean("value"))
+                    "int" -> editor.putInt(key, entry.getInt("value"))
+                    "long" -> editor.putLong(key, entry.getString("value").toLong())
+                    "float" -> editor.putFloat(key, entry.getDouble("value").toFloat())
+                    "stringSet" -> {
+                        val array = entry.getJSONArray("value")
+                        editor.putStringSet(key, (0 until array.length()).map { array.getString(it) }.toSet())
+                    }
+                    else -> error("Tipo de dato desconocido en la copia.")
+                }
+            }
+            check(editor.commit()) { "No se pudo restaurar " + name }
+        }
+        EarnTimeStore.forgetCacheForBackupRestore()
+        NativeSessionRepository.forgetCacheForTests()
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != backupCreateCode && requestCode != backupRestoreCode) return
+        if (resultCode != Activity.RESULT_OK || data?.data == null) {
+            backupResult?.success(false); backupResult = null; return
+        }
+        try {
+            val uri = data.data!!
+            if (requestCode == backupCreateCode) {
+                contentResolver.openOutputStream(uri, "wt")!!.use { it.write(backupJson().toString(2).toByteArray(Charsets.UTF_8)) }
+            } else {
+                val raw = contentResolver.openInputStream(uri)!!.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                restoreJson(JSONObject(raw))
+            }
+            backupResult?.success(true)
+        } catch (error: Exception) {
+            backupResult?.error("backup_error", error.message ?: "Error de copia.", null)
+        }
+        backupResult = null
+    }
+
     private fun status(snapshot: String) = mapOf("progress" to snapshot,
         "monitorRunning" to FocusBlockingService.running,
         "permissionsReady" to NativeAccess.canBlock(this),

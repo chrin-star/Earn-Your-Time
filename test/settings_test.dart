@@ -4,6 +4,11 @@ import 'package:focus_feed/settings.dart';
 import 'package:focus_feed/focus_strings.dart';
 
 class FakeSettingsPlatform implements SettingsPlatform {
+  @override
+  Future<bool> createBackup() async => true;
+  @override
+  Future<bool> restoreBackup() async => true;
+
   String? storedLanguage;
 
   @override
@@ -62,9 +67,9 @@ void main() {
     controller.dispose();
   });
 
-  test('invalid and missing languages default to Brazilian Portuguese', () {
-    expect(AppLanguage.parse(null), AppLanguage.portuguese);
-    expect(AppLanguage.parse('unknown'), AppLanguage.portuguese);
+  test('invalid and missing languages default to Spanish', () {
+    expect(AppLanguage.parse(null), AppLanguage.spanish);
+    expect(AppLanguage.parse('unknown'), AppLanguage.spanish);
   });
 
   test('theme mode maps to the Flutter ThemeMode', () {

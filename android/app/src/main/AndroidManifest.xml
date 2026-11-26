@@ -6,7 +6,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <application
-        android:label="FocusFeed"
+        android:label="Earn Your Time"
         android:name="${applicationName}"
         android:icon="@drawable/focusfeed_icon">
         <activity
@@ -35,6 +35,11 @@
             android:foregroundServiceType="specialUse">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="User initiated Pomodoro session: monitor selected foreground apps and display a blocking overlay during focus and after an earned timed break, with an explicit Stop action." />
+        </service>
+        <service android:name=".EarnTimeMonitorService" android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="User-started local app usage accounting for Earn Your Time; reads UsageStats while the display is interactive and shows a persistent notification with app controls." />
         </service>
         <receiver android:name=".SessionReceiver" android:exported="false">
             <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /></intent-filter>

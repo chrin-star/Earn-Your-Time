@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:focus_feed/main.dart';
 import 'package:focus_feed/permissions.dart';
@@ -9,17 +10,49 @@ import 'fake_session_platform.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  const earnTimeChannel = MethodChannel('focusfeed/earn_time');
   setUp(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
           FocusPermissions.channel,
           (_) async => {'supported': true, 'usage': true, 'overlay': true},
         );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(earnTimeChannel, (call) async {
+          switch (call.method) {
+            case 'status':
+            case 'configure':
+              return {
+                'dayKey': DateTime.now().toIso8601String().substring(0, 10),
+                'productiveSeconds': 0,
+                'earnedSeconds': 0,
+                'distractingSeconds': 0,
+                'remainingSeconds': 1800,
+                'dailyAllowanceSeconds': 1800,
+                'rewardNumerator': 1,
+                'rewardDenominator': 1,
+                'productivityGoalSeconds': 3600,
+                'history': <Map<String, dynamic>>[],
+                'productivePackages': <String>[],
+                'distractingPackages': <String>[],
+                'monitorRunning': false,
+                'usagePermission': true,
+                'overlayPermission': true,
+              };
+            case 'startMonitor':
+            case 'stopMonitor':
+              return true;
+            default:
+              return null;
+          }
+        });
   });
-  tearDown(
-    () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(FocusPermissions.channel, null),
-  );
+  tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(FocusPermissions.channel, null);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(earnTimeChannel, null);
+  });
   testWidgets('zero reward disables release while installed apps are shown', (
     tester,
   ) async {
@@ -27,13 +60,14 @@ void main() {
     final c = SessionController(platform: native, poll: false);
     await tester.pumpWidget(FocusFeedApp(controller: c));
     await tester.pumpAndSettle();
+    await _openFocus(tester);
     await tester.scrollUntilVisible(
-      find.text('Liberar Redes por 0 min'),
+      find.text('Desbloquear apps durante 0 min'),
       200,
       scrollable: find.byType(Scrollable).first,
     );
     final button = tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, 'Liberar Redes por 0 min'),
+      find.widgetWithText(FilledButton, 'Desbloquear apps durante 0 min'),
     );
     expect(button.onPressed, isNull);
     await tester.scrollUntilVisible(
@@ -41,8 +75,10 @@ void main() {
       200,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.ensureVisible(
+    await tester.scrollUntilVisible(
       find.widgetWithText(CheckboxListTile, 'Outro app'),
+      100,
+      scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(CheckboxListTile, 'Outro app'));
@@ -66,9 +102,15 @@ void main() {
       final c = SessionController(platform: native, poll: false);
       await tester.pumpWidget(FocusFeedApp(controller: c));
       await tester.pumpAndSettle();
+      await _openFocus(tester);
       expect(find.text('15:00'), findsOneWidget);
-      expect(find.text('Retomar Foco'), findsOneWidget);
       expect(find.text('Celular reiniciado.'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('Reanudar enfoque'),
+        120,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Reanudar enfoque'), findsOneWidget);
       await tester.scrollUntilVisible(find.text('Saldo: 5 min 12 s'), 200);
       expect(find.text('Saldo: 5 min 12 s'), findsOneWidget);
       await tester.pumpWidget(const SizedBox());
@@ -84,6 +126,7 @@ void main() {
     final c = SessionController(platform: native, poll: false);
     await tester.pumpWidget(FocusFeedApp(controller: c));
     await tester.pumpAndSettle();
+    await _openFocus(tester);
     await tester.scrollUntilVisible(find.text('Recompensa: 00:12'), 200);
     expect(find.text('Recompensa: 00:12'), findsOneWidget);
     native.progress['session']['phase'] = 'locked';
@@ -96,7 +139,7 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
     expect(
-      find.text('Bloqueio indisponível — verifique permissões e serviço'),
+      find.text('Bloqueo no disponible — comprueba los permisos y el servicio'),
       findsOneWidget,
     );
     await tester.pumpWidget(const SizedBox());
@@ -109,11 +152,36 @@ void main() {
     final c = SessionController(platform: native, poll: false);
     await tester.pumpWidget(FocusFeedApp(controller: c));
     await tester.pumpAndSettle();
-    expect(find.text('Tentar carregar novamente'), findsOneWidget);
-    expect(find.text('Iniciar Foco'), findsNothing);
+    expect(find.text('Volver a cargar'), findsOneWidget);
+    expect(find.text('Iniciar enfoque'), findsNothing);
     await tester.pumpWidget(const SizedBox());
     c.dispose();
   });
+  testWidgets('apps have a dedicated searchable tab and daily stats are separate', (
+    tester,
+  ) async {
+    final native = FakeSessionPlatform();
+    final controller = SessionController(platform: native, poll: false);
+    await tester.pumpWidget(FocusFeedApp(controller: controller));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Apps'));
+    await tester.pumpAndSettle();
+    expect(find.text('Tus aplicaciones'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Buscar aplicación'), findsOneWidget);
+
+    await tester.tap(find.text('Estadísticas').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Calendario de productividad'), findsOneWidget);
+    expect(find.text('Esta semana'), findsOneWidget);
+    expect(find.text('Racha actual'), findsOneWidget);
+    expect(find.text('Mejor día'), findsOneWidget);
+    expect(find.text('Earn Your Time'), findsWidgets);
+
+    await tester.pumpWidget(const SizedBox());
+    controller.dispose();
+  });
+
   testWidgets('settings tab selects a theme and shows developer contact', (
     tester,
   ) async {
@@ -124,13 +192,31 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Ajustes'));
     await tester.pumpAndSettle();
-    expect(find.text('Valdenor Tavares'), findsOneWidget);
-    expect(find.text('valdenor.sa@proton.me'), findsOneWidget);
-    await tester.tap(find.text('Escuro'));
+    // Select the theme while its control is visible near the top of settings.
+    await tester.ensureVisible(find.byKey(const Key('themeMode')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('themeMode')));
     await tester.pumpAndSettle();
     expect(settings.mode, AppThemeMode.dark);
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
     expect(app.themeMode, ThemeMode.dark);
+
+    // Then verify the help and developer sections farther down the page.
+    await tester.scrollUntilVisible(
+      find.text('Importante en Xiaomi y Redmi'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Importante en Xiaomi y Redmi'), findsOneWidget);
+    expect(find.textContaining('Sin restricciones'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Valdenor Tavares'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Valdenor Tavares'), findsOneWidget);
+    expect(find.text('valdenor.sa@proton.me'), findsOneWidget);
+    expect(settings.mode, AppThemeMode.dark);
     await tester.pumpWidget(const SizedBox());
     settings.dispose();
     c.dispose();
@@ -162,11 +248,16 @@ void main() {
     await tester.tap(find.text('Enfoque'));
     await tester.pumpAndSettle();
     expect(find.text('15:00'), findsOneWidget);
-    expect(find.text('Reanudar enfoque'), findsOneWidget);
     expect(
       find.text('Enfoque completado. La recompensa se añadió al saldo.'),
       findsOneWidget,
     );
+    await tester.scrollUntilVisible(
+      find.text('Reanudar enfoque'),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Reanudar enfoque'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
     settings.dispose();
     controller.dispose();
@@ -177,14 +268,15 @@ void main() {
     final c = SessionController(platform: native, poll: false);
     await tester.pumpWidget(FocusFeedApp(controller: c));
     await tester.pumpAndSettle();
+    await _openFocus(tester);
     await tester.scrollUntilVisible(
-      find.text('Selecionar apps no iOS'),
+      find.text('Seleccionar apps en iOS'),
       200,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.ensureVisible(find.text('Selecionar apps no iOS'));
+    await tester.ensureVisible(find.text('Seleccionar apps en iOS'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Selecionar apps no iOS'));
+    await tester.tap(find.text('Seleccionar apps en iOS'));
     await tester.pumpAndSettle();
     expect(native.calls.last, 'pickApps');
     await tester.pumpWidget(const SizedBox());
@@ -193,6 +285,11 @@ void main() {
 }
 
 class _FakeSettingsPlatform implements SettingsPlatform {
+  @override
+  Future<bool> createBackup() async => true;
+  @override
+  Future<bool> restoreBackup() async => true;
+
   String? storedLanguage;
 
   @override
@@ -208,4 +305,9 @@ class _FakeSettingsPlatform implements SettingsPlatform {
 
   @override
   Future<void> saveTheme(String value) async => stored = value;
+}
+
+Future<void> _openFocus(WidgetTester tester) async {
+  await tester.tap(find.text('Enfoque'));
+  await tester.pumpAndSettle();
 }
