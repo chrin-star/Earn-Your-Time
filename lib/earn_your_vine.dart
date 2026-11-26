@@ -747,7 +747,7 @@ class _VineWorldPainter extends CustomPainter {
       canvas.drawLine(Offset(vineX + side * 25, markerY), Offset(vineX + side * 54, markerY), _paint);
       _paint.style = PaintingStyle.fill;
       final label = TextPainter(
-        text: TextSpan(text: '${markerMeters} m', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700, shadows: [Shadow(color: Color(0xAA102A31), blurRadius: 4)])),
+        text: TextSpan(text: '$markerMeters m', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700, shadows: [Shadow(color: Color(0xAA102A31), blurRadius: 4)])),
         textDirection: TextDirection.ltr,
       )..layout();
       final labelX = side > 0 ? vineX + 60 : vineX - 60 - label.width;
