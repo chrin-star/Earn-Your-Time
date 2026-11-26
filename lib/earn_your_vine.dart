@@ -579,7 +579,7 @@ class _VineWorldPainter extends CustomPainter {
         _oval(canvas, Rect.fromCircle(center: Offset(x, y), radius: r),
             Colors.white.withValues(alpha: .3 + random.nextDouble() * .55));
       }
-    } else {
+    } else if (hours < 600) {
       _oval(canvas, Rect.fromLTWH(w * .70, tipY + 130, 130, 130),
           const Color(0x44FFF1C2));
       _oval(canvas, Rect.fromLTWH(w * .74, tipY + 150, 78, 78),
