@@ -12,8 +12,9 @@ class EarnYourVineView extends StatefulWidget {
   State<EarnYourVineView> createState() => _EarnYourVineViewState();
 }
 
-class _EarnYourVineViewState extends State<EarnYourVineView> {
+class _EarnYourVineViewState extends State<EarnYourVineView> with SingleTickerProviderStateMixin {
   final ScrollController _scroll = ScrollController();
+  late final AnimationController _cloudController;
   bool _firstLayout = true;
   final Set<String> _ownedItems = <String>{};
   int _spentCoins = 0;
@@ -28,11 +29,12 @@ class _EarnYourVineViewState extends State<EarnYourVineView> {
 
   int get _earnedCoins => widget.productiveSeconds ~/ 600;
   int get _coinBalance => math.max(0, _earnedCoins - _spentCoins);
-  int get _heightMeters => (850 * math.log(1 + widget.productiveSeconds / 60) / 10).floor();
+  int get _heightMeters => (2.5 * math.sqrt(widget.productiveSeconds / 60)).floor();
 
   @override
   void initState() {
     super.initState();
+    _cloudController = AnimationController(vsync: this, duration: const Duration(seconds: 42))..repeat();
     _loadShop();
   }
 
@@ -198,6 +200,7 @@ class _EarnYourVineViewState extends State<EarnYourVineView> {
   @override
   void dispose() {
     _scroll.dispose();
+    _cloudController.dispose();
     super.dispose();
   }
 
@@ -282,13 +285,20 @@ class _EarnYourVineViewState extends State<EarnYourVineView> {
                   final worldHeight = math.max(constraints.maxHeight, growth + 160).toDouble();
                   final painter = _VineWorldPainter(
                     hours: hours,
-                    growth: growth,
-                    ownedItems: Set<String>.unmodifiable(_ownedItems),
-                  );
                   final world = SizedBox(
                     width: constraints.maxWidth,
                     height: worldHeight,
-                    child: CustomPaint(painter: painter),
+                    child: AnimatedBuilder(
+                      animation: _cloudController,
+                      builder: (context, _) => CustomPaint(
+                        painter: _VineWorldPainter(
+                          hours: hours,
+                          growth: growth,
+                          ownedItems: Set<String>.unmodifiable(_ownedItems),
+                          cloudPhase: _cloudController.value,
+                        ),
+                      ),
+                    ),
                   );
                   if (_firstLayout) {
                     _firstLayout = false;
@@ -408,16 +418,17 @@ class _VineStage {
 }
 
 double _vineGrowth(int productiveSeconds) {
-  // Logarithmic height keeps the world growing for years without an
-  // unmanageably large canvas. Early productive time is deliberately dramatic.
-  return 80 + 850 * math.log(1 + productiveSeconds / 60);
+  // A slower square-root curve makes early growth modest while preserving
+  // long-term progression. Ten canvas pixels represent one displayed metre.
+  return 80 + 25 * math.sqrt(productiveSeconds / 60);
 }
 
 class _VineWorldPainter extends CustomPainter {
-  _VineWorldPainter({required this.hours, required this.growth, required this.ownedItems});
+  _VineWorldPainter({required this.hours, required this.growth, required this.ownedItems, required this.cloudPhase});
   final double hours;
   final double growth;
   final Set<String> ownedItems;
+  final double cloudPhase;
   final Paint _paint = Paint()..isAntiAlias = true;
 
   static const _milestones = [0.0, 1.0, 4.0, 12.0, 30.0, 80.0, 160.0, 300.0, 600.0, 1000.0];
@@ -568,12 +579,6 @@ class _VineWorldPainter extends CustomPainter {
         _oval(canvas, Rect.fromCircle(center: Offset(x, y), radius: r),
             Colors.white.withValues(alpha: .3 + random.nextDouble() * .55));
       }
-      if (hours >= 1) {
-        _oval(canvas, Rect.fromLTWH(w * .73, tipY + 160, 100, 100),
-            const Color(0x55FFE7B2));
-        _oval(canvas, Rect.fromLTWH(w * .76, tipY + 175, 68, 68),
-            const Color(0xFFFFE6B0));
-      }
     } else {
       _oval(canvas, Rect.fromLTWH(w * .70, tipY + 130, 130, 130),
           const Color(0x44FFF1C2));
@@ -581,20 +586,27 @@ class _VineWorldPainter extends CustomPainter {
           const Color(0xFFFFE7A3));
     }
 
-    if (hours >= 80) {
-      final cloudSpacing = 540.0;
-      for (double y = tipY + 360; y < rootY; y += cloudSpacing) {
-        final x = (math.sin(y / 700) * .25 + .5) * (w - 150);
-        _oval(canvas, Rect.fromLTWH(x, y, 150, 35),
-            const Color(0x66FFFFFF));
-        _oval(canvas, Rect.fromLTWH(x + 32, y - 24, 88, 58),
-            const Color(0x77FFFFFF));
-        _oval(canvas, Rect.fromLTWH(x + 84, y - 7, 96, 38),
-            const Color(0x66FFFFFF));
-      }
+    // Decorative clouds drift independently of productive time and plant growth.
+    int cloudIndex = 0;
+    for (double y = tipY + 115; y < rootY - 35; y += 470) {
+      final direction = cloudIndex.isEven ? 1.0 : -1.0;
+      final travel = (cloudPhase * (cloudIndex.isEven ? 1.0 : .72) + cloudIndex * .37) % 1.0;
+      final x = direction > 0
+          ? -175 + travel * (w + 350)
+          : w + 175 - travel * (w + 350);
+      final opacity = hours < 4 ? .22 : .52;
+      _oval(canvas, Rect.fromLTWH(x, y, 150, 35), Colors.white.withValues(alpha: opacity));
+      _oval(canvas, Rect.fromLTWH(x + 32, y - 24, 88, 58), Colors.white.withValues(alpha: opacity + .08));
+      _oval(canvas, Rect.fromLTWH(x + 84, y - 7, 96, 38), Colors.white.withValues(alpha: opacity));
+      cloudIndex++;
     }
 
     if (hours >= 600) {
+      // The moon becomes a distant landmark only after the climb reaches space.
+      _oval(canvas, Rect.fromLTWH(w * .70, tipY + 250, 116, 116), const Color(0x667C91C8));
+      _oval(canvas, Rect.fromLTWH(w * .72, tipY + 246, 108, 108), const Color(0xFFE3E7F2));
+      _oval(canvas, Rect.fromLTWH(w * .75, tipY + 270, 18, 15), const Color(0xFFD0D5E5));
+      _oval(canvas, Rect.fromLTWH(w * .78, tipY + 300, 24, 19), const Color(0xFFD0D5E5));
       for (int i = 0; i < (h / 36).ceil().clamp(30, 600); i++) {
         final x = random.nextDouble() * w;
         final y = random.nextDouble() * h;
@@ -900,5 +912,5 @@ class _VineWorldPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _VineWorldPainter old) =>
-      old.hours != hours || old.growth != growth || !setEquals(old.ownedItems, ownedItems);
+      old.hours != hours || old.growth != growth || old.cloudPhase != cloudPhase || !setEquals(old.ownedItems, ownedItems);
 }
